@@ -2,45 +2,67 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MedInsight AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedInsight AI | Instant Medical Decoder</title>
     <style>
-        body { font-family: sans-serif; padding: 40px; background: #f4f4f9; display: flex; justify-content: center; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; width: 100%; }
-        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        button:disabled { background: #ccc; }
-        #result { margin-top: 20px; line-height: 1.6; }
-        .err { color: red; background: #ffdada; padding: 10px; border-radius: 4px; margin-top: 10px; }
+        :root { --primary: #2563eb; --bg: #f3f4f6; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 100%; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .header { border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; padding-bottom: 10px; }
+        h2 { color: #111827; margin: 0; }
+        .upload-section { margin-bottom: 20px; padding: 20px; border: 2px dashed #d1d5db; border-radius: 8px; text-align: center; }
+        button { background: var(--primary); color: white; width: 100%; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 16px; transition: opacity 0.2s; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #output { margin-top: 25px; line-height: 1.6; color: #374151; }
+        .error-msg { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 12px; border-radius: 6px; margin-top: 15px; }
+        .footer-note { font-size: 11px; color: #6b7280; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>MedInsight AI</h2>
-    <input type="file" id="reportFile" accept="image/*,application/pdf" style="margin-bottom: 20px;">
-    <button id="btn" onclick="run()">Analyze Report</button>
-    <div id="result"></div>
+<div class="container">
+    <div class="header">
+        <h2>MedInsight AI</h2>
+        <p>Decipher your medical reports instantly.</p>
+    </div>
+
+    <div class="upload-section">
+        <input type="file" id="fileInput" accept="image/*,.pdf">
+        <p style="font-size: 12px; color: #6b7280; margin-top: 10px;">Upload a clear photo or PDF of your lab report.</p>
+    </div>
+    
+    <button onclick="startAnalysis()" id="mainBtn">Analyze Report</button>
+
+    <div id="output"></div>
+
+    <div class="footer-note">
+        <strong>Disclaimer:</strong> This is an AI-generated summary for informational purposes. 
+        Always verify with a <strong>Specialist Doctor</strong> and <strong>Nutritionist</strong> before taking action.
+    </div>
 </div>
 
 <script>
-    async function run() {
-        const file = document.getElementById('reportFile').files[0];
-        const btn = document.getElementById('btn');
-        const resDiv = document.getElementById('result');
+    async function startAnalysis() {
+        const fileInput = document.getElementById('fileInput');
+        const btn = document.getElementById('mainBtn');
+        const output = document.getElementById('output');
+        
+        if (!fileInput.files[0]) {
+            alert("Please select a file first.");
+            return;
+        }
 
-        if (!file) return alert("Select a file");
-
+        // 1. UI Loading State
         btn.disabled = true;
-        btn.innerText = "Processing...";
-        resDiv.innerHTML = "<em>AI is interpreting your results...</em>";
+        btn.innerText = "Connecting to AI Engine...";
+        output.innerHTML = "<em>Analyzing markers... This usually takes 10-15 seconds.</em>";
 
         try {
-            const base64 = await new Promise((res, rej) => {
-                const reader = new FileReader();
-                reader.onload = () => res(reader.result);
-                reader.readAsDataURL(file);
-            });
+            const file = fileInput.files[0];
+            const base64 = await toBase64(file);
 
-            // TARGET URL: Change this to your exact Railway URL
+            // 2. The Railway Call
+            // NOTE: Ensure the URL ends with /analyze and matches your Railway Public Domain
             const railwayUrl = 'https://medinsightai-production.up.railway.app/analyze';
 
             const response = await fetch(railwayUrl, {
@@ -49,17 +71,36 @@
                 body: JSON.stringify({ fileData: base64 })
             });
 
-            if (!response.ok) throw new Error("Server responded with error " + response.status);
+            if (!response.ok) {
+                throw new Error(`Server responded with status ${response.status}`);
+            }
 
-            const data = await response.json();
-            resDiv.innerHTML = data.htmlContent;
-        } catch (e) {
-            resDiv.innerHTML = `<div class="err"><strong>Fetch Error:</strong> ${e.message}<br>Check if your Railway URL starts with https://</div>`;
+            const result = await response.json();
+            
+            // 3. Render the HTML returned by Gemini
+            output.innerHTML = result.htmlContent;
+
+        } catch (err) {
+            console.error("Analysis Error:", err);
+            output.innerHTML = `
+                <div class="error-msg">
+                    <strong>Fetch Error:</strong> ${err.message}<br>
+                    <small>Verify your Railway server is awake and CORS is enabled.</small>
+                </div>`;
         } finally {
             btn.disabled = false;
             btn.innerText = "Analyze Report";
         }
     }
+
+    // Helper to convert file to Base64
+    const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
 </script>
+
 </body>
 </html>
