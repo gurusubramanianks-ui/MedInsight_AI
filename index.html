@@ -3,79 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedInsight AI | Personal Health Dashboard</title>
+    <title>MedInsight AI | Instant Report Decoder</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .mi-card { background: #fff; padding: 30px; border-radius: 15px; max-width: 500px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-top: 5px solid #007bff; }
-        h2 { color: #007bff; margin-top: 0; }
-        .section { margin-bottom: 20px; padding: 15px; border-radius: 8px; background: #fafafa; border: 1px solid #eee; }
-        input[type="file"] { margin: 15px 0; display: block; }
-        button { background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; transition: background 0.3s; }
-        button:hover { background: #0056b3; }
-        .warning-box { font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; font-style: italic; }
-        #mi-identity-alert { display: none; background: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; margin-bottom: 15px; color: #856404; font-size: 14px; }
+        body { font-family: 'Inter', sans-serif; background: #f9fafb; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .header { color: #111827; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; margin-bottom: 20px; }
+        .status-box { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
+        .out-of-range { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; }
+        .in-range { background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; }
+        button { background: #2563eb; color: white; width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        #output { white-space: pre-wrap; margin-top: 20px; line-height: 1.6; }
     </style>
 </head>
 <body>
 
-<div class="mi-card">
-    <h2>MedInsight AI</h2>
-    <p>Upload your medical report for a personalized AI summary.</p>
-
-    <div id="mi-identity-alert">
-        <strong>⚠️ Profile Check</strong>
-        <p id="mi-name-warning"></p>
+<div class="container">
+    <div class="header">
+        <h2>MedInsight AI</h2>
+        <p>Simple & Secure Medical Report Analysis</p>
     </div>
 
-    <div class="section">
-        <label><strong>1. Select Report (PDF/Image)</strong></label>
-        <input type="file" id="mi-file-input" accept=".pdf, .jpg, .png, .jpeg">
-    </div>
+    <input type="file" id="fileInput" accept=".jpg,.png,.pdf">
+    <p style="font-size: 12px; color: #6b7280;">Supported: Blood tests, Urine, Scans (Images/PDF)</p>
+    
+    <button onclick="startAnalysis()" id="mainBtn">Analyze Report</button>
 
-    <div class="section">
-        <label>
-            <input type="checkbox" id="mi-consent"> I agree to the privacy policy and understand this is not a medical diagnosis.
-        </label>
-    </div>
-
-    <button id="analyze-btn" disabled>Generate Analysis</button>
-
-    <div id="results-area" style="margin-top:25px; display:none;">
-        <hr>
-        <div id="mi-motivation" style="font-weight: bold; color: #28a745; margin-bottom: 15px;"></div>
-        <div id="mi-summary-content"></div>
-    </div>
-
-    <div class="warning-box">
-        Warning: This AI tool provides recommendations only. Always check with a Specialist Doctor and Nutritionist.
-    </div>
+    <div id="output"></div>
+    
+    <p style="font-size: 11px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px; color: #9ca3af;">
+        *Disclaimer: This is an AI recommendation. Consult a Specialist Doctor and Nutritionist.
+    </p>
 </div>
 
 <script>
-    const consentCheck = document.getElementById('mi-consent');
-    const analyzeBtn = document.getElementById('analyze-btn');
-
-    // Enable button only when consent is given
-    consentCheck.addEventListener('change', (e) => {
-        analyzeBtn.disabled = !e.target.checked;
-        analyzeBtn.style.opacity = e.target.checked ? "1" : "0.5";
-    });
-
-    analyzeBtn.addEventListener('click', async () => {
-        const fileInput = document.getElementById('mi-file-input');
-        if (!fileInput.files[0]) return alert("Please upload a file.");
-
-        analyzeBtn.innerText = "AI is analyzing...";
+    async function startAnalysis() {
+        const file = document.getElementById('fileInput').files[0];
+        if (!file) return alert("Please select a file.");
         
-        // This is where we will link to your Backend (Step 2)
-        setTimeout(() => {
-            document.getElementById('results-area').style.display = "block";
-            document.getElementById('mi-motivation').innerText = "1 in 100 have diabetes. A good diet and exercise can help you! Be positive and enjoy your life.";
-            document.getElementById('mi-summary-content').innerHTML = "<h3>What's looking Good</h3><ul><li>Your Hemoglobin is perfect.</li></ul>";
-            analyzeBtn.innerText = "Generate Analysis";
-        }, 2000);
-    });
-</script>
+        const btn = document.getElementById('mainBtn');
+        const output = document.getElementById('output');
+        
+        btn.innerText = "Reading Report...";
+        output.innerHTML = "<em>AI is scanning your markers against ICMR standards...</em>";
 
+        // Step: Convert file to Base64 (simplified for demo)
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = async () => {
+            try {
+                const response = await fetch('https://your-backend-url.railway.app/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileData: reader.result })
+                });
+                const result = await response.json();
+                output.innerHTML = result.htmlContent;
+            } catch (e) {
+                output.innerHTML = "Analysis failed. Please check your connection.";
+            } finally {
+                btn.innerText = "Analyze Report";
+            }
+        };
+    }
+</script>
 </body>
 </html>
