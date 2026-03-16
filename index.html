@@ -1,63 +1,81 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <meta http-equiv="Content-Style-Type" content="text/css">
-  <title>Krivi AI Solutions | Hospital Portal</title>
-  <meta name="Generator" content="Cocoa HTML Writer">
-  <meta name="CocoaVersion" content="2299">
-  <style type="text/css">
-    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000}
-    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; color: #000000; -webkit-text-stroke: #000000; min-height: 14.0px}
-    span.s1 {font-kerning: none}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MedInsight AI | Personal Health Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .mi-card { background: #fff; padding: 30px; border-radius: 15px; max-width: 500px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-top: 5px solid #007bff; }
+        h2 { color: #007bff; margin-top: 0; }
+        .section { margin-bottom: 20px; padding: 15px; border-radius: 8px; background: #fafafa; border: 1px solid #eee; }
+        input[type="file"] { margin: 15px 0; display: block; }
+        button { background: #007bff; color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; width: 100%; transition: background 0.3s; }
+        button:hover { background: #0056b3; }
+        .warning-box { font-size: 12px; color: #666; margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; font-style: italic; }
+        #mi-identity-alert { display: none; background: #fff3cd; border: 1px solid #ffeeba; padding: 10px; border-radius: 5px; margin-bottom: 15px; color: #856404; font-size: 14px; }
+    </style>
 </head>
 <body>
-<p class="p1"><span class="s1">&lt;div id="med-insight-root"&gt;&lt;/div&gt;</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1">&lt;script&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>// Step 1: Initialize the Widget</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>window.MedInsight = {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>init: function(config) {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const root = document.getElementById('med-insight-root');</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>root.innerHTML = `</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;div style="border: 1px solid #007bff; padding: 20px; border-radius: 10px; max-width: 450px; font-family: sans-serif;"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;h3 style="color: #007bff;"&gt;${config.institutionName} Health Assistant&lt;/h3&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;p&gt;Securely analyze your lab reports with AI.&lt;/p&gt;</span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">          </span></span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;input type="file" id="mi-upload" accept=".pdf,.jpg,.png" style="margin-bottom: 10px;"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;br&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;button id="mi-btn" style="background:#007bff; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>Generate AI Summary</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;/button&gt;</span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">          </span></span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;div id="mi-results" style="margin-top: 20px; display:none;"&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>&lt;div id="mi-motivation" style="background:#f0fff4; padding:10px; border-radius:8px; font-style:italic; margin-bottom:10px;"&gt;&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>&lt;div id="mi-content"&gt;&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">          </span>&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>&lt;/div&gt;</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>`;</span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">      </span></span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>document.getElementById('mi-btn').onclick = this.handleUpload.bind(this);</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>},</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>handleUpload: async function() {</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>const file = document.getElementById('mi-upload').files[0];</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>if(!file) return alert("Select a report!");</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// Simulate API call to your Railway Backend</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>document.getElementById('mi-results').style.display = "block";</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>document.getElementById('mi-content').innerText = "AI is reading your markers against ICMR standards...";</span></p>
-<p class="p2"><span class="s1"><span class="Apple-converted-space">      </span></span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>// The Backend will respond with Requirement #6, #7, #8, #9, and #12</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>}</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>};</span></p>
-<p class="p2"><span class="s1"></span><br></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>// Usage by Institution</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>MedInsight.init({</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>institutionName: "City Diagnostics Lab",</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>apiKey: "CI_12345"</span></p>
-<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>});</span></p>
-<p class="p1"><span class="s1">&lt;/script&gt;</span></p>
+
+<div class="mi-card">
+    <h2>MedInsight AI</h2>
+    <p>Upload your medical report for a personalized AI summary.</p>
+
+    <div id="mi-identity-alert">
+        <strong>⚠️ Profile Check</strong>
+        <p id="mi-name-warning"></p>
+    </div>
+
+    <div class="section">
+        <label><strong>1. Select Report (PDF/Image)</strong></label>
+        <input type="file" id="mi-file-input" accept=".pdf, .jpg, .png, .jpeg">
+    </div>
+
+    <div class="section">
+        <label>
+            <input type="checkbox" id="mi-consent"> I agree to the privacy policy and understand this is not a medical diagnosis.
+        </label>
+    </div>
+
+    <button id="analyze-btn" disabled>Generate Analysis</button>
+
+    <div id="results-area" style="margin-top:25px; display:none;">
+        <hr>
+        <div id="mi-motivation" style="font-weight: bold; color: #28a745; margin-bottom: 15px;"></div>
+        <div id="mi-summary-content"></div>
+    </div>
+
+    <div class="warning-box">
+        Warning: This AI tool provides recommendations only. Always check with a Specialist Doctor and Nutritionist.
+    </div>
+</div>
+
+<script>
+    const consentCheck = document.getElementById('mi-consent');
+    const analyzeBtn = document.getElementById('analyze-btn');
+
+    // Enable button only when consent is given
+    consentCheck.addEventListener('change', (e) => {
+        analyzeBtn.disabled = !e.target.checked;
+        analyzeBtn.style.opacity = e.target.checked ? "1" : "0.5";
+    });
+
+    analyzeBtn.addEventListener('click', async () => {
+        const fileInput = document.getElementById('mi-file-input');
+        if (!fileInput.files[0]) return alert("Please upload a file.");
+
+        analyzeBtn.innerText = "AI is analyzing...";
+        
+        // This is where we will link to your Backend (Step 2)
+        setTimeout(() => {
+            document.getElementById('results-area').style.display = "block";
+            document.getElementById('mi-motivation').innerText = "1 in 100 have diabetes. A good diet and exercise can help you! Be positive and enjoy your life.";
+            document.getElementById('mi-summary-content').innerHTML = "<h3>What's looking Good</h3><ul><li>Your Hemoglobin is perfect.</li></ul>";
+            analyzeBtn.innerText = "Generate Analysis";
+        }, 2000);
+    });
+</script>
+
 </body>
 </html>
