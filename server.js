@@ -1,40 +1,34 @@
 const express = require('express');
-const cors = require('cors'); // 1. Import CORS
+const cors = require('cors'); // Essential for connection
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
-app.use(cors()); // 2. Enable CORS for all requests
-app.use(express.json({ limit: '10mb' }));
+app.use(cors()); // Allow all origins for the MVP
+app.use(express.json({ limit: '20mb' })); // Increased limit for high-res images
 
-const express = require('express');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-const app = express();
-app.use(express.json({ limit: '10mb' }));
-
-const genAI = new GoogleGenerativeAI("AIzaSyCQm8OZHDtOpmWeN5I1f-uy7EbMhvh8lkM");
+const genAI = new GoogleGenerativeAI(process.env.AIzaSyCQm8OZHDtOpmWeN5I1f-uy7EbMhvh8lkM);
 
 app.post('/analyze', async (req, res) => {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
-    // The System Prompt based on your Requirements #6, #7, #8
-    const prompt = `
-    Extract data from this medical report. 
-    1. Identify the name in the report.
-    2. List "What you need to look into": Find out-of-range results. For each, say: "[Marker] is above/below range. You might need medications, exercise and a change in diet. Please consult [Specialist] and a Nutritionist."
-    3. List "Whats looking Good": Summarize in-range results.
-    4. List "Action Items": Specific steps based on medical standards.
-    5. Add a "Daily Inspiration": Use a random stat about health in India, a positive quote, and a sportsman's quote (e.g., Sachin Tendulkar or MS Dhoni).
-    6. Mention: "References: icmr.org.in, who.int"
-    Format the output as clean HTML.
-    `;
-
     try {
-        // Gemini handles the image/PDF directly
-        const result = await model.generateContent([prompt, { inlineData: { data: req.body.fileData.split(',')[1], mimeType: "image/jpeg" } }]);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        // Convert Base64 back to raw data for Gemini
+        const base64Data = req.body.fileData.split(',')[1];
+        const mimeType = req.body.fileData.split(';')[0].split(':')[1];
+
+        const prompt = "Act as a medical lab interpreter. Extract data from this report. 1. Identify patient name. 2. List 'What you need to look into' (Out of range results) with your specific explanation including 'You might need medications, exercise and a change in diet'. 3. List 'Whats looking Good' (In range). 4. List 'Action Items'. 5. Add a statistical health fact about India and a motivational quote from a famous sportsperson. Format as clean HTML.";
+
+        const result = await model.generateContent([
+            prompt,
+            { inlineData: { data: base64Data, mimeType } }
+        ]);
+
         res.json({ htmlContent: result.response.text() });
     } catch (error) {
-        res.status(500).json({ error: "AI Processing Error" });
+        console.error(error);
+        res.status(500).json({ error: error.message });
     }
 });
 
-app.listen(process.env.PORT || 3000);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
