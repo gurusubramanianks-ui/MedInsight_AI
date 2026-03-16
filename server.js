@@ -1,41 +1,53 @@
 const express = require('express');
 const cors = require('cors');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+require('dotenv').config();
 
 const app = express();
+const port = process.env.PORT || 8080;
 
-// 1. ENABLE CORS FOR ALL ORIGINS (Crucial for Vercel -> Railway)
-app.use(cors());
-
-// 2. INCREASE JSON LIMIT (Crucial for high-res images)
-app.use(express.json({ limit: '20mb' }));
-
+// Initialize Gemini AI
+// Ensure GEMINI_API_KEY is set in your Railway Environment Variables
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-app.post('/analyze', async (req, res) => {
-    try {
-        if (!req.body.fileData) return res.status(400).json({ error: "No file data" });
+// CORS Configuration
+// Replace the origin URL with your actual Vercel deployment URL
+app.use(cors({
+  origin: ['https://your-medinsight-frontend.vercel.app', 'http://localhost:3000'],
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const base64Data = req.body.fileData.split(',')[1];
-        const mimeType = req.body.fileData.split(';')[0].split(':')[1];
+app.use(express.json());
 
-        const prompt = `Act as a medical lab interpreter. 1. Identify name. 2. List 'What you need to look into' (Out of range) with the phrase 'Your [Test] looks above/below range, you might need medications, exercise and a change in diet'. 3. List 'Whats looking Good'. 4. List 'Action Items'. 5. Add a health fact about India and a motivational quote. Format as clean HTML.`;
-
-        const result = await model.generateContent([
-            prompt,
-            { inlineData: { data: base64Data, mimeType } }
-        ]);
-
-        res.json({ htmlContent: result.response.text() });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: error.message });
-    }
+// Basic health check route
+app.get('/', (req, res) => {
+  res.send('MedInsight AI Backend is running.');
 });
 
-// Health check to verify Railway is awake
-app.get('/', (req, res) => res.send("MedInsight is live and accepting connections!"));
+// Analysis route
+app.post('/analyze', async (req, res) => {
+  try {
+    const { text } = req.body;
 
+    if (!text) {
+      return res.status(400).json({ error: 'No text provided for analysis.' });
+    }
 
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const prompt = `Analyze the following medical text and provide a concise summary, key findings, and recommended next steps: ${text}`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const analysis = response.text();
+
+    res.json({ analysis });
+  } catch (error) {
+    console.error('Error during analysis:', error);
+    res.status(500).json({ error: 'Failed to analyze the medical text. Check API key and logs.' });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
 });
