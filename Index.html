@@ -1,0 +1,46 @@
+<div id="med-insight-root"></div>
+
+<script>
+  // Step 1: Initialize the Widget
+  window.MedInsight = {
+    init: function(config) {
+      const root = document.getElementById('med-insight-root');
+      root.innerHTML = `
+        <div style="border: 1px solid #007bff; padding: 20px; border-radius: 10px; max-width: 450px; font-family: sans-serif;">
+          <h3 style="color: #007bff;">${config.institutionName} Health Assistant</h3>
+          <p>Securely analyze your lab reports with AI.</p>
+          
+          <input type="file" id="mi-upload" accept=".pdf,.jpg,.png" style="margin-bottom: 10px;">
+          <br>
+          <button id="mi-btn" style="background:#007bff; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;">
+            Generate AI Summary
+          </button>
+          
+          <div id="mi-results" style="margin-top: 20px; display:none;">
+            <div id="mi-motivation" style="background:#f0fff4; padding:10px; border-radius:8px; font-style:italic; margin-bottom:10px;"></div>
+            <div id="mi-content"></div>
+          </div>
+        </div>
+      `;
+      
+      document.getElementById('mi-btn').onclick = this.handleUpload.bind(this);
+    },
+
+    handleUpload: async function() {
+      const file = document.getElementById('mi-upload').files[0];
+      if(!file) return alert("Select a report!");
+
+      // Simulate API call to your Railway Backend
+      document.getElementById('mi-results').style.display = "block";
+      document.getElementById('mi-content').innerText = "AI is reading your markers against ICMR standards...";
+      
+      // The Backend will respond with Requirement #6, #7, #8, #9, and #12
+    }
+  };
+
+  // Usage by Institution
+  MedInsight.init({
+    institutionName: "City Diagnostics Lab",
+    apiKey: "CI_12345"
+  });
+</script>
