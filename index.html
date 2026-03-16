@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedInsight AI | Instant Report Decoder</title>
+    <title>MedInsight AI | Dashboard</title>
     <style>
-        body { font-family: 'Inter', sans-serif; background: #f9fafb; padding: 20px; display: flex; justify-content: center; }
-        .container { background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .header { color: #111827; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; margin-bottom: 20px; }
-        .status-box { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; }
-        .out-of-range { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; }
-        .in-range { background: #dcfce7; border: 1px solid #bbf7d0; color: #166534; }
-        button { background: #2563eb; color: white; width: 100%; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
-        #output { white-space: pre-wrap; margin-top: 20px; line-height: 1.6; }
+        body { font-family: 'Inter', sans-serif; background: #f3f4f6; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 30px; border-radius: 12px; max-width: 600px; width: 100%; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .header { border-bottom: 2px solid #e5e7eb; margin-bottom: 20px; padding-bottom: 10px; }
+        #output { margin-top: 20px; line-height: 1.6; color: #374151; }
+        button { background: #2563eb; color: white; width: 100%; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 16px; }
+        button:disabled { background: #93c5fd; cursor: not-allowed; }
+        .error { color: #dc2626; background: #fee2e2; padding: 10px; border-radius: 5px; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -20,51 +19,61 @@
 <div class="container">
     <div class="header">
         <h2>MedInsight AI</h2>
-        <p>Simple & Secure Medical Report Analysis</p>
+        <p>Upload a report to begin analysis.</p>
     </div>
 
-    <input type="file" id="fileInput" accept=".jpg,.png,.pdf">
-    <p style="font-size: 12px; color: #6b7280;">Supported: Blood tests, Urine, Scans (Images/PDF)</p>
+    <input type="file" id="fileInput" accept="image/*,.pdf" style="margin-bottom: 20px;">
     
     <button onclick="startAnalysis()" id="mainBtn">Analyze Report</button>
 
     <div id="output"></div>
-    
-    <p style="font-size: 11px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px; color: #9ca3af;">
-        *Disclaimer: This is an AI recommendation. Consult a Specialist Doctor and Nutritionist.
-    </p>
 </div>
 
 <script>
     async function startAnalysis() {
-        const file = document.getElementById('fileInput').files[0];
-        if (!file) return alert("Please select a file.");
-        
+        const fileInput = document.getElementById('fileInput');
         const btn = document.getElementById('mainBtn');
         const output = document.getElementById('output');
         
-        btn.innerText = "Reading Report...";
-        output.innerHTML = "<em>AI is scanning your markers against ICMR standards...</em>";
+        if (!fileInput.files[0]) return alert("Please select a report first!");
 
-        // Step: Convert file to Base64 (simplified for demo)
+        // 1. Set Loading State
+        btn.disabled = true;
+        btn.innerText = "Connecting to AI Engine...";
+        output.innerHTML = "<em>Scanning markers... This usually takes 10-15 seconds.</em>";
+
+        try {
+            const file = fileInput.files[0];
+            const base64 = await toBase64(file);
+
+            // 2. Call your Railway URL (Make sure /analyze is at the end)
+            const response = await fetch('https://medinsightai-production.up.railway.app/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileData: base64 })
+            });
+
+            if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+
+            const result = await response.json();
+            output.innerHTML = result.htmlContent;
+
+        } catch (err) {
+            console.error(err);
+            output.innerHTML = `<div class="error"><strong>Error:</strong> ${err.message}<br>Check if your Railway server is awake!</div>`;
+        } finally {
+            // 3. Reset Button State
+            btn.disabled = false;
+            btn.innerText = "Analyze Report";
+        }
+    }
+
+    const toBase64 = file => new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
-        reader.onload = async () => {
-            try {
-                const response = await fetch(''https://medinsightai-production.up.railway.app/analyze', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fileData: reader.result })
-                });
-                const result = await response.json();
-                output.innerHTML = result.htmlContent;
-            } catch (e) {
-                output.innerHTML = "Analysis failed. Please check your connection.";
-            } finally {
-                btn.innerText = "Analyze Report";
-            }
-        };
-    }
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
 </script>
 </body>
 </html>
