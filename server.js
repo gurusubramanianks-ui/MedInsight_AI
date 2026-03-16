@@ -4,32 +4,23 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 
-// FIX: CORS must be initialized before any routes
-app.use(cors({
-  origin: '*', // Allows access from any domain (Vercel, Localhost, etc.)
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
-}));
+// 1. ENABLE CORS FOR ALL ORIGINS (Crucial for Vercel -> Railway)
+app.use(cors());
 
-// Handle large medical report images
+// 2. INCREASE JSON LIMIT (Crucial for high-res images)
 app.use(express.json({ limit: '20mb' }));
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.post('/analyze', async (req, res) => {
-    console.log("Received analysis request...");
     try {
-        if (!req.body.fileData) return res.status(400).json({ error: "No file uploaded" });
+        if (!req.body.fileData) return res.status(400).json({ error: "No file data" });
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const base64Data = req.body.fileData.split(',')[1];
         const mimeType = req.body.fileData.split(';')[0].split(':')[1];
 
-        const prompt = `Act as a medical lab interpreter. Identify the patient name. 
-        List 'What you need to look into' (Out of range) and use the phrase: 'Your [Test] looks above/below range, you might need medications, exercise and a change in diet'. 
-        List 'Whats looking Good' (In range). List 'Action Items'. 
-        Add a random health stat about India and a motivational quote from a sportsperson. 
-        Format as clean HTML.`;
+        const prompt = `Act as a medical lab interpreter. 1. Identify name. 2. List 'What you need to look into' (Out of range) with the phrase 'Your [Test] looks above/below range, you might need medications, exercise and a change in diet'. 3. List 'Whats looking Good'. 4. List 'Action Items'. 5. Add a health fact about India and a motivational quote. Format as clean HTML.`;
 
         const result = await model.generateContent([
             prompt,
@@ -38,13 +29,13 @@ app.post('/analyze', async (req, res) => {
 
         res.json({ htmlContent: result.response.text() });
     } catch (error) {
-        console.error("Gemini Error:", error.message);
+        console.error(error);
         res.status(500).json({ error: error.message });
     }
 });
 
-// Health check endpoint
-app.get('/', (req, res) => res.send("MedInsight Server is Online"));
+// Health check to verify Railway is awake
+app.get('/', (req, res) => res.send("MedInsight is live and accepting connections!"));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server port: ${PORT}`));
