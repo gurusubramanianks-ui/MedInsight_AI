@@ -6,7 +6,7 @@ const app = express();
 app.use(cors()); // Allow all origins for the MVP
 app.use(express.json({ limit: '20mb' })); // Increased limit for high-res images
 
-const genAI = new GoogleGenerativeAI(process.env.AIzaSyCQm8OZHDtOpmWeN5I1f-uy7EbMhvh8lkM);
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 app.post('/analyze', async (req, res) => {
     try {
