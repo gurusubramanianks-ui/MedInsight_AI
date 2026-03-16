@@ -1,5 +1,11 @@
-const cors = require('cors');
-app.use(cors());
+const express = require('express');
+const cors = require('cors'); // 1. Import CORS
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+const app = express();
+app.use(cors()); // 2. Enable CORS for all requests
+app.use(express.json({ limit: '10mb' }));
+
 const express = require('express');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const app = express();
