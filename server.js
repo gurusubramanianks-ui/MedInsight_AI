@@ -37,7 +37,5 @@ app.post('/analyze', async (req, res) => {
 // Health check to verify Railway is awake
 app.get('/', (req, res) => res.send("MedInsight is live and accepting connections!"));
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on port ${PORT}`);
+
 });
