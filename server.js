@@ -13,7 +13,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // CORS Configuration
 // Replace the origin URL with your actual Vercel deployment URL
 app.use(cors({
-  origin: ['https://your-medinsight-frontend.vercel.app', 'http://localhost:3000'],
+  origin: ['https://your-medinsight-frontend.vercel.app', 'http://localhost:8080'],
   methods: ['GET', 'POST'],
   credentials: true
 }));
