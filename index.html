@@ -2,39 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MedInsight AI Test</title>
+    <title>MedInsight Fix</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; line-height: 1.6; }
-        .box { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
-        .success { color: green; font-weight: bold; }
-        .error { color: red; font-weight: bold; }
+        body { font-family: sans-serif; text-align: center; padding: 50px; }
+        #status { padding: 20px; border: 1px solid #ccc; margin-top: 20px; border-radius: 10px; }
+        .success { color: green; border-color: green; background: #f0fff0; }
+        .error { color: red; border-color: red; background: #fff0f0; }
     </style>
 </head>
 <body>
-    <h1>MedInsight AI Test</h1>
-
-    <div class="box">
-        <h3>Step 1: Check Connection</h3>
-        <button onclick="checkStatus()">Check Status</button>
-        <p id="statusResult"></p>
-    </div>
+    <h1>System Status</h1>
+    <button id="checkBtn">Test API Connection</button>
+    <div id="status">Waiting for input...</div>
 
     <script>
-        // UPDATE THIS to your actual Railway URL
-        const API_URL = "https://medinsightai-production.up.railway.app/analyze"; 
+        // IMPORTANT: Change this to your ACTUAL Railway URL
+        // Example: "https://medinsight-production.up.railway.app"
+        const API_URL = "https://medinsightai-production.up.railway.app/analyze";
 
-        async function checkStatus() {
-            const res = document.getElementById('statusResult');
-            res.innerText = "Checking...";
+        document.getElementById('checkBtn').onclick = async () => {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = "Connecting...";
+
             try {
+                // We add /test to ensure we are asking for the JSON route
                 const response = await fetch(`${API_URL}/test`);
+                
+                if (!response.ok) {
+                    throw new Error(`Server returned HTML/Error (${response.status})`);
+                }
+
                 const data = await response.json();
-                res.innerHTML = `<span class="success">${data.message}</span>`;
+                statusDiv.innerText = `Connected! message: ${data.message}`;
+                statusDiv.className = "success";
             } catch (err) {
-                res.innerHTML = `<span class="error">Failed: ${err.message}</span>`;
+                console.error(err);
+                statusDiv.innerText = `Error: ${err.message}. Check if your Railway URL is correct and the service is 'Active'.`;
+                statusDiv.className = "error";
             }
-        }
+        };
     </script>
 </body>
 </html>
