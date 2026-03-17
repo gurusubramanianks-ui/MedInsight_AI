@@ -2,22 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MedInsight AI Pro</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; background-color: #f4f7f6; }
-        .upload-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
-        #output { margin-top: 20px; padding: 20px; background: white; border-radius: 12px; min-height: 100px; border-left: 5px solid #007bff; white-space: pre-wrap; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; }
-        button:disabled { background: #ccc; }
+        body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; background-color: #f4f7f6; text-align: center; }
+        .upload-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        #output { margin-top: 20px; padding: 20px; background: white; border-radius: 12px; min-height: 100px; border-left: 5px solid #007bff; white-space: pre-wrap; text-align: left; }
+        button { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        input[type="file"] { margin: 20px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; max-width: 300px; }
     </style>
 </head>
 <body>
 
     <div class="upload-container">
         <h2>MedInsight Lab Report Analyzer</h2>
-        <p>Upload a <b>Photo</b>, <b>PDF</b>, or <b>Word (.docx)</b> document</p>
+        <p>Upload your report (PDF, Image, or Word)</p>
         
-        <input type="file" id="reportFile" accept="image/*, application/pdf, .docx" style="margin-bottom: 20px;">
+        <input type="file" id="reportFile" 
+            accept=".pdf, .doc, .docx, application/pdf, image/*">
         <br>
         <button onclick="analyzeReport()" id="uploadBtn">Analyze Now</button>
     </div>
@@ -25,7 +28,7 @@
     <div id="output">Analysis will appear here...</div>
 
     <script>
-        // Update this with your Railway URL
+        // BE SURE TO REPLACE THIS WITH YOUR REAL RAILWAY URL
         const API_URL = "https://medinsightai-production.up.railway.app"; 
 
         async function analyzeReport() {
@@ -33,9 +36,11 @@
             const output = document.getElementById('output');
             const btn = document.getElementById('uploadBtn');
 
-            if (!fileInput.files[0]) return alert("Please select a file first!");
+            if (!fileInput.files || !fileInput.files[0]) {
+                return alert("Please select a file first!");
+            }
 
-            output.innerHTML = "<i>Analyzing your report... this usually takes 10-15 seconds.</i>";
+            output.innerHTML = "<i>⏳ Analyzing... this takes about 15 seconds. Please wait.</i>";
             btn.disabled = true;
 
             const formData = new FormData();
@@ -47,12 +52,16 @@
                     body: formData
                 });
 
-                const data = await response.json();
-                if (data.error) throw new Error(data.error);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `Server error: ${response.status}`);
+                }
 
+                const data = await response.json();
                 output.innerText = data.analysis;
             } catch (err) {
-                output.innerHTML = `<b style="color:red">Error: ${err.message}</b>`;
+                console.error("Full Error:", err);
+                output.innerHTML = `<b style="color:red">Error: ${err.message}</b><br><small>Check console for more details.</small>`;
             } finally {
                 btn.disabled = false;
             }
