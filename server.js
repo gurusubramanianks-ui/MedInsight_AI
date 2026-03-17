@@ -26,6 +26,7 @@ if (!API_KEY) {
 const genAI = new GoogleGenerativeAI(API_KEY || "");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
+// Replace your app.post('/analyze'...) block with this
 app.post('/analyze', upload.single('report'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -33,26 +34,45 @@ app.post('/analyze', upload.single('report'), async (req, res) => {
     let textToAnalyze = "";
     const mimeType = req.file.mimetype;
 
-    // STEP 1: Extract Text 
-    try {
-        if (mimeType === 'application/pdf') {
-            const data = await pdf(req.file.buffer);
-            textToAnalyze = data.text;
-        } else if (mimeType.includes('officedocument')) {
-            const docResult = await mammoth.extractRawText({ buffer: req.file.buffer });
-            textToAnalyze = docResult.value;
-        } else if (mimeType.startsWith('image/')) {
-            // For images, we send the buffer directly to Gemini 
-            const result = await model.generateContent([
-                "Analyze this medical image for out-of-range values.",
-                { inlineData: { data: req.file.buffer.toString("base64"), mimeType } }
-            ]);
-            return res.json({ analysis: (await result.response).text() });
-        }
-    } catch (parseErr) {
-        console.error("Extraction Error:", parseErr);
-        return res.status(500).json({ error: "Could not read the file content." });
+    // 1. Improved Text Extraction
+    if (mimeType === 'application/pdf') {
+        const data = await pdf(req.file.buffer);
+        textToAnalyze = data.text;
+    } else if (mimeType.includes('officedocument')) {
+        const docResult = await mammoth.extractRawText({ buffer: req.file.buffer });
+        textToAnalyze = docResult.value;
+    } else {
+        // Fallback for images
+        return await handleImage(req, res);
     }
+
+    // 2. Surgical Prompt (Forces Gemini to be fast)
+    const prompt = `
+      CONTEXT: You are looking at a 19-page medical lab report.
+      TASK: Scroll through the detailed results. Extract ONLY the values that are marked high, low, or abnormal.
+      FORMAT: Return a simple Markdown table with: Parameter, Observed Value, and Reference Range.
+      LIMIT: If no abnormal values are found, state "All values are within normal range."
+      DATA:
+      ${textToAnalyze.substring(0, 40000)}
+    `;
+
+    // 3. Speed-Optimized Generation
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        maxOutputTokens: 1000,
+        temperature: 0.1, // Lower temp = faster, more focused response
+      }
+    });
+
+    const response = await result.response;
+    res.json({ analysis: response.text() });
+
+  } catch (error) {
+    console.error("ANALYSIS FAILED:", error.message);
+    res.status(500).json({ error: "AI Processing failed.", details: error.message });
+  }
+});
 
     // STEP 2: Send Text to Gemini with "Ignore Summary" instruction 
     const prompt = `
