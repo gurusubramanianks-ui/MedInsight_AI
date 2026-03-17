@@ -30,15 +30,14 @@
    <script>
     const API_URL = "https://medinsightai-production.up.railway.app"; 
 
-    // Replace your analyzeReport() function with this
-async function analyzeReport() {
+  async function analyzeReport() {
     const fileInput = document.getElementById('reportFile');
     const output = document.getElementById('output');
     const btn = document.getElementById('uploadBtn');
 
     if (!fileInput.files[0]) return alert("Please select a file!");
 
-    output.innerHTML = "<i>⏳ Reading file and contacting AI...</i>";
+    output.innerHTML = "<i>⏳ Server is reading your 19-page report... please wait up to 45 seconds.</i>";
     btn.disabled = true;
 
     const formData = new FormData();
@@ -51,15 +50,11 @@ async function analyzeReport() {
         });
 
         const data = await response.json();
-        
-        if (!response.ok) {
-            // This will now show the specific error details 
-            throw new Error(data.details || data.error || "Unknown Error");
-        }
+        if (!response.ok) throw new Error(data.details || data.error);
 
         output.innerText = data.analysis;
     } catch (err) {
-        output.innerHTML = `<b style="color:red">Status: ${err.message}</b><br><small>Tip: Check Railway Logs for 'FATAL ERROR'.</small>`;
+        output.innerHTML = `<b style="color:red">Status: ${err.message}</b><br><small>If this persists, try uploading a screenshot of just the 'Abnormal Values' page.</small>`;
     } finally {
         btn.disabled = false;
     }
