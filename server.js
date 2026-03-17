@@ -7,26 +7,18 @@ const pdf = require('pdf-parse');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
-
-// Set limits to handle the 19-page file size
 app.use(express.json({ limit: '50mb' }));
 app.use(cors());
 
 const upload = multer({ 
     storage: multer.memoryStorage(),
-    limits: { fileSize: 25 * 1024 * 1024 } // 25MB limit
+    limits: { fileSize: 25 * 1024 * 1024 } 
 });
 
-// Safety check for API Key
-const API_KEY = process.env.GEMINI_API_KEY;
-if (!API_KEY) {
-    console.error("FATAL ERROR: GEMINI_API_KEY is not set in Railway Variables!");
-}
-
-const genAI = new GoogleGenerativeAI(API_KEY || "");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-// Replace your app.post('/analyze'...) block with this
+// The "async" keyword here is what was missing in your error log
 app.post('/analyze', upload.single('report'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -34,34 +26,37 @@ app.post('/analyze', upload.single('report'), async (req, res) => {
     let textToAnalyze = "";
     const mimeType = req.file.mimetype;
 
-    // 1. Improved Text Extraction
+    // 1. Extract Text based on file type
     if (mimeType === 'application/pdf') {
         const data = await pdf(req.file.buffer);
         textToAnalyze = data.text;
     } else if (mimeType.includes('officedocument')) {
         const docResult = await mammoth.extractRawText({ buffer: req.file.buffer });
         textToAnalyze = docResult.value;
-    } else {
-        // Fallback for images
-        return await handleImage(req, res);
+    } else if (mimeType.startsWith('image/')) {
+        // Surgical Image handling
+        const result = await model.generateContent([
+            "Extract only abnormal medical values from this image.",
+            { inlineData: { data: req.file.buffer.toString("base64"), mimeType } }
+        ]);
+        return res.json({ analysis: (await result.response).text() });
     }
 
-    // 2. Surgical Prompt (Forces Gemini to be fast)
+    // 2. Surgical Prompt for large reports 
     const prompt = `
-      CONTEXT: You are looking at a 19-page medical lab report.
-      TASK: Scroll through the detailed results. Extract ONLY the values that are marked high, low, or abnormal.
-      FORMAT: Return a simple Markdown table with: Parameter, Observed Value, and Reference Range.
-      LIMIT: If no abnormal values are found, state "All values are within normal range."
-      DATA:
-      ${textToAnalyze.substring(0, 40000)}
+      CONTEXT: 19-page medical lab report.
+      TASK: Extract ONLY abnormal/out-of-range values. 
+      FORMAT: Simple Markdown table: Parameter, Observed Value, Reference Range.
+      LIMIT: Skip marketing and summaries. If everything is normal, say "All normal."
+      DATA: ${textToAnalyze.substring(0, 35000)}
     `;
 
-    // 3. Speed-Optimized Generation
+    // 3. AI Generation with performance config 
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
         maxOutputTokens: 1000,
-        temperature: 0.1, // Lower temp = faster, more focused response
+        temperature: 0.1, 
       }
     });
 
@@ -70,33 +65,11 @@ app.post('/analyze', upload.single('report'), async (req, res) => {
 
   } catch (error) {
     console.error("ANALYSIS FAILED:", error.message);
-    res.status(500).json({ error: "AI Processing failed.", details: error.message });
-  }
-});
-
-    // STEP 2: Send Text to Gemini with "Ignore Summary" instruction 
-    const prompt = `
-      You are a medical lab expert. Analyze the following text from a 19-page report.
-      1. IGNORE the initial summary pages and marketing text.
-      2. SEARCH the detailed data for observed values outside reference ranges.
-      3. Focus on Hematology, Lipid, Liver, and Diabetes.
-      4. List out-of-range values in a table.
-      5. Include a disclaimer.
-      
-      REPORT TEXT:
-      ${textToAnalyze.substring(0, 35000)}
-    `;
-
-    const result = await model.generateContent(prompt);
-    res.json({ analysis: (await result.response).text() });
-
-  } catch (error) {
-    console.error("GEMINI ERROR:", error.message);
-    res.status(500).json({ error: "AI Processing failed.", details: error.message });
+    res.status(500).json({ error: "Processing failed.", details: error.message });
   }
 });
 
 app.get('/test', (req, res) => res.json({ status: "Ready" }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server live on ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server live on port ${PORT}`));
