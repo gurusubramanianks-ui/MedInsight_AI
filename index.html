@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MedInsight AI Pro</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; background-color: #f4f7f6; text-align: center; }
@@ -10,55 +9,55 @@
         #output { margin-top: 20px; padding: 20px; background: white; border-radius: 12px; min-height: 100px; border-left: 5px solid #007bff; white-space: pre-wrap; text-align: left; }
         button { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
         button:disabled { background: #ccc; cursor: not-allowed; }
-        input[type="file"] { margin: 20px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; max-width: 350px; }
     </style>
 </head>
 <body>
-
     <div class="upload-container">
         <h2>MedInsight Lab Report Analyzer</h2>
-        <p>Select a <b>PDF</b>, <b>Image</b>, or <b>Word</b> file to begin.</p>
-        
-        <input type="file" id="reportFile" 
-            accept=".pdf, .doc, .docx, application/pdf, image/*">
-        <br>
+        <input type="file" id="reportFile" accept=".pdf, .doc, .docx, application/pdf, image/*">
+        <br><br>
         <button onclick="analyzeReport()" id="uploadBtn">Analyze Now</button>
     </div>
-
     <div id="output">Results will appear here...</div>
 
-   <script>
-    const API_URL = "https://medinsightai-production.up.railway.app"; 
+    <script>
+        // CRITICAL: Ensure this is your EXACT Railway Public URL
+        const API_URL = "https://medinsightai-production.up.railway.app"; 
 
-  async function analyzeReport() {
-    const fileInput = document.getElementById('reportFile');
-    const output = document.getElementById('output');
-    const btn = document.getElementById('uploadBtn');
+        async function analyzeReport() {
+            const fileInput = document.getElementById('reportFile');
+            const output = document.getElementById('output');
+            const btn = document.getElementById('uploadBtn');
 
-    if (!fileInput.files[0]) return alert("Please select a file!");
+            if (!fileInput.files[0]) return alert("Please select a file first!");
 
-    output.innerHTML = "<i>⏳ Server is reading your 19-page report... please wait up to 45 seconds.</i>";
-    btn.disabled = true;
+            output.innerHTML = "<i>⏳ Connecting to server and analyzing...</i>";
+            btn.disabled = true;
 
-    const formData = new FormData();
-    formData.append('report', fileInput.files[0]);
+            const formData = new FormData();
+            formData.append('report', fileInput.files[0]);
 
-    try {
-        const response = await fetch(`${API_URL}/analyze`, {
-            method: 'POST',
-            body: formData
-        });
+            try {
+                // We add /analyze to the end of the URL
+                const response = await fetch(`${API_URL}/analyze`, {
+                    method: 'POST',
+                    body: formData
+                });
 
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.details || data.error);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.details || errorData.error || "Server Error");
+                }
 
-        output.innerText = data.analysis;
-    } catch (err) {
-        output.innerHTML = `<b style="color:red">Status: ${err.message}</b><br><small>If this persists, try uploading a screenshot of just the 'Abnormal Values' page.</small>`;
-    } finally {
-        btn.disabled = false;
-    }
-}
-</script>
+                const data = await response.json();
+                output.innerText = data.analysis;
+            } catch (err) {
+                console.error("Fetch Error:", err);
+                output.innerHTML = `<b style="color:red">Error: ${err.message}</b><br><small>If it says 'Failed to fetch', check your Railway URL and ensure the service is 'Active'.</small>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
 </body>
 </html>
