@@ -1,46 +1,46 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>MedInsight Fix</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; }
-        #status { padding: 20px; border: 1px solid #ccc; margin-top: 20px; border-radius: 10px; }
-        .success { color: green; border-color: green; background: #f0fff0; }
-        .error { color: red; border-color: red; background: #fff0f0; }
-    </style>
-</head>
 <body>
-    <h1>System Status</h1>
-    <button id="checkBtn">Test API Connection</button>
-    <div id="status">Waiting for input...</div>
+    <h1>MedInsight Lab Analyzer</h1>
+    
+    <div style="border: 2px dashed #ccc; padding: 20px; border-radius: 10px;">
+        <input type="file" id="reportFile" accept="image/*">
+        <button onclick="analyzeReport()" id="uploadBtn">Analyze Report</button>
+    </div>
+
+    <div id="output" style="margin-top: 20px; text-align: left; white-space: pre-wrap; padding: 15px; background: #f9f9f9; border-radius: 5px;">
+        Results will appear here...
+    </div>
 
     <script>
-        // IMPORTANT: Change this to your ACTUAL Railway URL
-        // Example: "https://medinsight-production.up.railway.app"
-        const API_URL = "https://medinsightai-production.up.railway.app";
+        const API_URL = "https://medinsightai-production.up.railway.app"; // Update this!
 
-        document.getElementById('checkBtn').onclick = async () => {
-            const statusDiv = document.getElementById('status');
-            statusDiv.innerText = "Connecting...";
+        async function analyzeReport() {
+            const fileInput = document.getElementById('reportFile');
+            const output = document.getElementById('output');
+            const btn = document.getElementById('uploadBtn');
+
+            if (!fileInput.files[0]) return alert("Please select an image first!");
+
+            output.innerText = "Analyzing... (this may take 10-15 seconds)";
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('report', fileInput.files[0]);
 
             try {
-                // We add /test to ensure we are asking for the JSON route
-                const response = await fetch(`${API_URL}/test`);
-                
-                if (!response.ok) {
-                    throw new Error(`Server returned HTML/Error (${response.status})`);
-                }
+                const response = await fetch(`${API_URL}/analyze`, {
+                    method: 'POST',
+                    body: formData
+                });
 
                 const data = await response.json();
-                statusDiv.innerText = `Connected! message: ${data.message}`;
-                statusDiv.className = "success";
+                if (data.error) throw new Error(data.error);
+
+                output.innerText = data.analysis;
             } catch (err) {
-                console.error(err);
-                statusDiv.innerText = `Error: ${err.message}. Check if your Railway URL is correct and the service is 'Active'.`;
-                statusDiv.className = "error";
+                output.innerText = "Error: " + err.message;
+            } finally {
+                btn.disabled = false;
             }
-        };
+        }
     </script>
 </body>
-</html>
