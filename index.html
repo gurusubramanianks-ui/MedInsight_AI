@@ -27,50 +27,44 @@
 
     <div id="output">Results will appear here...</div>
 
-    <script>
-        // REPLACE with your actual Railway URL
-        const API_URL = "https://medinsightai-production.up.railway.app"; 
+   <script>
+    const API_URL = "https://medinsightai-production.up.railway.app"; 
 
-        async function analyzeReport() {
-            const fileInput = document.getElementById('reportFile');
-            const output = document.getElementById('output');
-            const btn = document.getElementById('uploadBtn');
+    async function analyzeReport() {
+        const fileInput = document.getElementById('reportFile');
+        const output = document.getElementById('output');
+        const btn = document.getElementById('uploadBtn');
 
-            if (!fileInput.files[0]) return alert("Please select a file first!");
+        const file = fileInput.files[0];
+        if (!file) return alert("Please select a file!");
 
-            output.innerHTML = "<i>⏳ Processing report... this may take up to 60 seconds for large files.</i>";
-            btn.disabled = true;
-
-            const formData = new FormData();
-            formData.append('report', fileInput.files[0]);
-
-            try {
-                // Set a long 60-second timeout for the fetch request
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 60000);
-
-                const response = await fetch(`${API_URL}/analyze`, {
-                    method: 'POST',
-                    body: formData,
-                    signal: controller.signal
-                });
-
-                clearTimeout(timeoutId);
-
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || "Server Error");
-
-                output.innerText = data.analysis;
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    output.innerHTML = `<b style="color:red">Error: Timeout. The report is too large for the current connection.</b>`;
-                } else {
-                    output.innerHTML = `<b style="color:red">Error: ${err.message}</b>`;
-                }
-            } finally {
-                btn.disabled = false;
-            }
+        // Pre-check size (20MB limit)
+        if (file.size > 20 * 1024 * 1024) {
+            return alert("File is too large. Please upload a smaller version or a screenshot of the summary.");
         }
-    </script>
+
+        output.innerHTML = "<i>⏳ Extracting text and analyzing detailed data...</i>";
+        btn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('report', file);
+
+        try {
+            const response = await fetch(`${API_URL}/analyze`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.details || data.error);
+
+            output.innerText = data.analysis;
+        } catch (err) {
+            output.innerHTML = `<b style="color:red">Error: ${err.message}</b>`;
+        } finally {
+            btn.disabled = false;
+        }
+    }
+</script>
 </body>
 </html>
