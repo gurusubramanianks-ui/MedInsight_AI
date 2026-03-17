@@ -10,14 +10,14 @@
         #output { margin-top: 20px; padding: 20px; background: white; border-radius: 12px; min-height: 100px; border-left: 5px solid #007bff; white-space: pre-wrap; text-align: left; }
         button { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
         button:disabled { background: #ccc; cursor: not-allowed; }
-        input[type="file"] { margin: 20px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; max-width: 300px; }
+        input[type="file"] { margin: 20px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 100%; max-width: 350px; }
     </style>
 </head>
 <body>
 
     <div class="upload-container">
         <h2>MedInsight Lab Report Analyzer</h2>
-        <p>Upload your report (PDF, Image, or Word)</p>
+        <p>Select a <b>PDF</b>, <b>Image</b>, or <b>Word</b> file to begin.</p>
         
         <input type="file" id="reportFile" 
             accept=".pdf, .doc, .docx, application/pdf, image/*">
@@ -25,10 +25,10 @@
         <button onclick="analyzeReport()" id="uploadBtn">Analyze Now</button>
     </div>
 
-    <div id="output">Analysis will appear here...</div>
+    <div id="output">Results will appear here...</div>
 
     <script>
-        // BE SURE TO REPLACE THIS WITH YOUR REAL RAILWAY URL
+        // REPLACE with your actual Railway URL
         const API_URL = "https://medinsightai-production.up.railway.app"; 
 
         async function analyzeReport() {
@@ -36,32 +36,37 @@
             const output = document.getElementById('output');
             const btn = document.getElementById('uploadBtn');
 
-            if (!fileInput.files || !fileInput.files[0]) {
-                return alert("Please select a file first!");
-            }
+            if (!fileInput.files[0]) return alert("Please select a file first!");
 
-            output.innerHTML = "<i>⏳ Analyzing... this takes about 15 seconds. Please wait.</i>";
+            output.innerHTML = "<i>⏳ Processing report... this may take up to 60 seconds for large files.</i>";
             btn.disabled = true;
 
             const formData = new FormData();
             formData.append('report', fileInput.files[0]);
 
             try {
+                // Set a long 60-second timeout for the fetch request
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 60000);
+
                 const response = await fetch(`${API_URL}/analyze`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || `Server error: ${response.status}`);
-                }
+                clearTimeout(timeoutId);
 
                 const data = await response.json();
+                if (!response.ok) throw new Error(data.error || "Server Error");
+
                 output.innerText = data.analysis;
             } catch (err) {
-                console.error("Full Error:", err);
-                output.innerHTML = `<b style="color:red">Error: ${err.message}</b><br><small>Check console for more details.</small>`;
+                if (err.name === 'AbortError') {
+                    output.innerHTML = `<b style="color:red">Error: Timeout. The report is too large for the current connection.</b>`;
+                } else {
+                    output.innerHTML = `<b style="color:red">Error: ${err.message}</b>`;
+                }
             } finally {
                 btn.disabled = false;
             }
