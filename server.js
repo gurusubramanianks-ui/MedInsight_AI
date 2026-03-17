@@ -12,42 +12,40 @@ app.use(cors());
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Check key at startup
+// 1. Initialize Gemini
 const API_KEY = process.env.GEMINI_API_KEY;
-if (!API_KEY || API_KEY.length < 10) {
-    console.error("FATAL: API Key is missing or too short!");
-}
-
 const genAI = new GoogleGenerativeAI(API_KEY || "");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
+// 2. Main Processing Route
 app.post('/analyze', upload.single('report'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
-    let textToAnalyze = "";
+    let textData = "";
     if (req.file.mimetype === 'application/pdf') {
         const data = await pdf(req.file.buffer);
-        textToAnalyze = data.text;
+        textData = data.text;
     } else {
         const docResult = await mammoth.extractRawText({ buffer: req.file.buffer });
-        textToAnalyze = docResult.value;
+        textData = docResult.value;
     }
 
-    const prompt = `Analyze this lab report text. List only out-of-range values in a table. \n\n ${textToAnalyze.substring(0, 20000)}`;
-
+    // 3. Surgical analysis for Guru Sankaran's 19-page report
+    const prompt = `Identify abnormal values in this report text. Format as a table. \n\n ${textData.substring(0, 25000)}`;
+    
     const result = await model.generateContent(prompt);
     const response = await result.response;
     res.json({ analysis: response.text() });
 
   } catch (error) {
-    // This logs the SPECIFIC reason Google rejected the call
-    console.error("GOOGLE API ERROR:", error.message);
+    console.error("DEBUG:", error.message);
     res.status(500).json({ 
         error: "AI failed to respond.", 
-        details: error.message // This sends the exact reason to your browser
+        details: error.message 
     });
   }
 });
 
-app.listen(process.env.PORT || 3000, '0.0.0.0', () => console.log("Server Live"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => console.log(`Server live on ${PORT}`));
