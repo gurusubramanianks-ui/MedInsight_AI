@@ -11,34 +11,26 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(cors());
 app.use(express.json());
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
+// Analysis Route
 app.post('/analyze', upload.single('report'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     const mimeType = req.file.mimetype;
-    let prompt = "You are a medical lab assistant. Analyze this medical report. List biomarkers, explain them simply, highlight out-of-range values, and include a disclaimer that this is not a diagnosis.";
+    const prompt = "You are a medical lab assistant. Analyze this report. List biomarkers, explain them simply, highlight out-of-range values, and include a medical disclaimer.";
     let parts = [];
 
     if (mimeType === 'application/pdf' || mimeType.startsWith('image/')) {
-      // Handle Images and PDFs directly
-      parts = [
-        prompt,
-        {
-          inlineData: {
-            data: req.file.buffer.toString("base64"),
-            mimeType: mimeType,
-          },
-        },
-      ];
-    } else if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-      // Handle Word Files (.docx) by extracting text
+      parts = [prompt, { inlineData: { data: req.file.buffer.toString("base64"), mimeType } }];
+    } else if (mimeType.includes('officedocument')) {
       const docResult = await mammoth.extractRawText({ buffer: req.file.buffer });
-      parts = [`${prompt}\n\nHere is the text from the medical report:\n${docResult.value}`];
+      parts = [`${prompt}\n\nReport Text:\n${docResult.value}`];
     } else {
-      return res.status(400).json({ error: "Unsupported file type. Use PDF, Image, or DOCX." });
+      return res.status(400).json({ error: "Unsupported file type." });
     }
 
     const result = await model.generateContent(parts);
@@ -46,12 +38,16 @@ app.post('/analyze', upload.single('report'), async (req, res) => {
     res.json({ analysis: response.text() });
 
   } catch (error) {
-    console.error("Analysis Error:", error);
-    res.status(500).json({ error: "Analysis failed. Please try a clearer file." });
+    console.error("DETAILED SERVER ERROR:", error.message);
+    res.status(500).json({ 
+      error: "Analysis failed. The report might be too large or the AI timed out.", 
+      details: error.message 
+    });
   }
 });
 
-app.get('/test', (req, res) => res.json({ status: "Ready" }));
+// Health Check
+app.get('/test', (req, res) => res.json({ status: "Ready", service: "MedInsight" }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running on ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server active on port ${PORT}`));
