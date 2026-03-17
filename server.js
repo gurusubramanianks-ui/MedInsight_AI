@@ -1,55 +1,42 @@
-// Load environment variables
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-require('dotenv').config();
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
-const port = process.env.PORT || 8080;
-
-// Initialize Gemini AI
-// Ensure GEMINI_API_KEY is set in your Railway Environment Variables
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-// CORS Configuration
-// Replace the origin URL with your actual Vercel deployment URL
-app.use(cors({
-  origin: ['https://your-medinsight-frontend.vercel.app', 'http://localhost:8080'],
-  methods: ['GET', 'POST'],
-  credentials: true
-}));
-
+app.use(cors());
 app.use(express.json());
 
-// Basic health check route
-app.get('/', (req, res) => {
-  res.send('MedInsight AI Backend is running.');
+// Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "YOUR_FALLBACK_KEY_IF_LOCAL");
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+// Test Route
+app.get('/test', (req, res) => {
+  res.json({ 
+    status: "Success", 
+    message: "MedInsight Backend is live with Gemini AI support!" 
+  });
 });
 
-// Analysis route
-app.post('/analyze', async (req, res) => {
+// Basic AI Route (Example)
+app.post('/ask', async (req, res) => {
   try {
-    const { text } = req.body;
-
-    if (!text) {
-      return res.status(400).json({ error: 'No text provided for analysis.' });
-    }
-
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    const prompt = `Analyze the following medical text and provide a concise summary, key findings, and recommended next steps: ${text}`;
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ error: "No prompt provided" });
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    const analysis = response.text();
-
-    res.json({ analysis });
+    res.json({ text: response.text() });
   } catch (error) {
-    console.error('Error during analysis:', error);
-    res.status(500).json({ error: 'Failed to analyze the medical text. Check API key and logs.' });
+    console.error("AI Error:", error);
+    res.status(500).json({ error: "AI failed to respond" });
   }
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+const PORT = process.env.PORT || 3000;
+
+// Listen on 0.0.0.0 for Railway
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });
