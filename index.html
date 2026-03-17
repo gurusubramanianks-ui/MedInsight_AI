@@ -30,41 +30,40 @@
    <script>
     const API_URL = "https://medinsightai-production.up.railway.app"; 
 
-    async function analyzeReport() {
-        const fileInput = document.getElementById('reportFile');
-        const output = document.getElementById('output');
-        const btn = document.getElementById('uploadBtn');
+    // Replace your analyzeReport() function with this
+async function analyzeReport() {
+    const fileInput = document.getElementById('reportFile');
+    const output = document.getElementById('output');
+    const btn = document.getElementById('uploadBtn');
 
-        const file = fileInput.files[0];
-        if (!file) return alert("Please select a file!");
+    if (!fileInput.files[0]) return alert("Please select a file!");
 
-        // Pre-check size (20MB limit)
-        if (file.size > 20 * 1024 * 1024) {
-            return alert("File is too large. Please upload a smaller version or a screenshot of the summary.");
+    output.innerHTML = "<i>⏳ Reading file and contacting AI...</i>";
+    btn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('report', fileInput.files[0]);
+
+    try {
+        const response = await fetch(`${API_URL}/analyze`, {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            // This will now show the specific error details 
+            throw new Error(data.details || data.error || "Unknown Error");
         }
 
-        output.innerHTML = "<i>⏳ Extracting text and analyzing detailed data...</i>";
-        btn.disabled = true;
-
-        const formData = new FormData();
-        formData.append('report', file);
-
-        try {
-            const response = await fetch(`${API_URL}/analyze`, {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.details || data.error);
-
-            output.innerText = data.analysis;
-        } catch (err) {
-            output.innerHTML = `<b style="color:red">Error: ${err.message}</b>`;
-        } finally {
-            btn.disabled = false;
-        }
+        output.innerText = data.analysis;
+    } catch (err) {
+        output.innerHTML = `<b style="color:red">Status: ${err.message}</b><br><small>Tip: Check Railway Logs for 'FATAL ERROR'.</small>`;
+    } finally {
+        btn.disabled = false;
     }
+}
 </script>
 </body>
 </html>
