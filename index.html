@@ -1,26 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MedInsight AI Pro</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; background-color: #f4f7f6; }
+        .upload-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
+        #output { margin-top: 20px; padding: 20px; background: white; border-radius: 12px; min-height: 100px; border-left: 5px solid #007bff; white-space: pre-wrap; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:disabled { background: #ccc; }
+    </style>
+</head>
 <body>
-    <h1>MedInsight Lab Analyzer</h1>
-    
-    <div style="border: 2px dashed #ccc; padding: 20px; border-radius: 10px;">
-        <input type="file" id="reportFile" accept="image/*">
-        <button onclick="analyzeReport()" id="uploadBtn">Analyze Report</button>
+
+    <div class="upload-container">
+        <h2>MedInsight Lab Report Analyzer</h2>
+        <p>Upload a <b>Photo</b>, <b>PDF</b>, or <b>Word (.docx)</b> document</p>
+        
+        <input type="file" id="reportFile" accept="image/*, application/pdf, .docx" style="margin-bottom: 20px;">
+        <br>
+        <button onclick="analyzeReport()" id="uploadBtn">Analyze Now</button>
     </div>
 
-    <div id="output" style="margin-top: 20px; text-align: left; white-space: pre-wrap; padding: 15px; background: #f9f9f9; border-radius: 5px;">
-        Results will appear here...
-    </div>
+    <div id="output">Analysis will appear here...</div>
 
     <script>
-        const API_URL = "https://medinsightai-production.up.railway.app"; // Update this!
+        // Update this with your Railway URL
+        const API_URL = "https://medinsightai-production.up.railway.app"; 
 
         async function analyzeReport() {
             const fileInput = document.getElementById('reportFile');
             const output = document.getElementById('output');
             const btn = document.getElementById('uploadBtn');
 
-            if (!fileInput.files[0]) return alert("Please select an image first!");
+            if (!fileInput.files[0]) return alert("Please select a file first!");
 
-            output.innerText = "Analyzing... (this may take 10-15 seconds)";
+            output.innerHTML = "<i>Analyzing your report... this usually takes 10-15 seconds.</i>";
             btn.disabled = true;
 
             const formData = new FormData();
@@ -37,10 +52,11 @@
 
                 output.innerText = data.analysis;
             } catch (err) {
-                output.innerText = "Error: " + err.message;
+                output.innerHTML = `<b style="color:red">Error: ${err.message}</b>`;
             } finally {
                 btn.disabled = false;
             }
         }
     </script>
 </body>
+</html>
