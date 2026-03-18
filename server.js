@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const pdf = require('pdf-parse');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
 
 const app = express();
 app.use(express.json({ limit: '50mb' })); 
@@ -11,47 +11,45 @@ app.use(cors());
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// --- STARTUP LOGGING ---
-const API_KEY = process.env.GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY || "");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-// FIX: Updated to the correct 2026 Preview identifier
-const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+// 1. UPDATED MODEL: Using the 3.1 branch for 2026
+const model = genAI.getGenerativeModel({ 
+    model: "gemini-3.1-flash-preview",
+    // 2. SAFETY FIX: Prevents the "blank" response by allowing medical data
+    safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH },
+    ]
+});
 
-app.get('/', (req, res) => res.send("MedInsight Backend Active"));
+app.get('/', (req, res) => res.send("MedInsight Active"));
 app.get('/test', (req, res) => res.json({ status: "Ready" }));
 
 app.post('/analyze', upload.single('report'), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    if (!req.file) return res.status(400).json({ error: "No file" });
 
-    // Step 1: Memory-Safe Text Extraction
-    let textData = "";
-    try {
-        const data = await pdf(req.file.buffer);
-        // Only take the first 25,000 characters to prevent memory 'SIGTERM'
-        textData = data.text.substring(0, 25000); 
-    } catch (e) {
-        return res.status(500).json({ error: "PDF too complex for server memory. Try a smaller file." });
-    }
+    const data = await pdf(req.file.buffer);
+    const textSnippet = data.text.substring(0, 25000); 
 
-    // Step 2: The Surgical Prompt
-    const prompt = `Identify out-of-range biomarkers for Guru Sankaran. Table format. \n\n ${textData}`;
+    // 3. IMPROVED PROMPT: Explicitly asking for a data table to avoid "Advice" triggers
+    const prompt = `You are a data extraction tool. Extract only the biomarkers, observed values, and reference ranges from this text for Guru Sankaran. 
+    Format as a Markdown table. Do not provide a diagnosis. 
+    TEXT: ${textSnippet}`;
 
-    // Step 3: AI call with strict token limits
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 600, temperature: 0.1 }
-    });
-
+    const result = await model.generateContent(prompt);
     const response = await result.response;
-    res.json({ analysis: response.text() });
+    const text = response.text();
 
+    if (!text) throw new Error("AI returned an empty response. Check safety filters.");
+
+    res.json({ analysis: text });
   } catch (error) {
     console.error("AI ERROR:", error.message);
-    res.status(500).json({ error: "AI Call Failed", details: error.message });
+    res.status(500).json({ error: "Analysis failed", details: error.message });
   }
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server active on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server active on ${PORT}`));
