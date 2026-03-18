@@ -12,6 +12,8 @@ app.use(cors());
 const upload = multer({ storage: multer.memoryStorage() });
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+// Using the 2026 stable preview model ID that gave the 400 error (proving it exists)
 const model = genAI.getGenerativeModel({ 
     model: "gemini-3-flash-preview",
     safetySettings: [
@@ -28,14 +30,13 @@ app.post('/analyze', upload.single('report'), async (req, res) => {
     const mimeType = req.file.mimetype;
     let parts = [];
 
-    // --- THE "FORK IN THE ROAD" FIX ---
+    // --- CRITICAL FIX: Packaging everything as objects ---
     if (mimeType === 'application/pdf') {
-        // Handle PDF text extraction
         const data = await pdf(req.file.buffer);
-        parts.push(`Extract out-of-range biomarkers for Guru Sankaran. Table format. \n\n ${data.text.substring(0, 25000)}`);
+        parts.push({ text: `Extract out-of-range biomarkers for Guru Sankaran. Format as a table. \n\n ${data.text.substring(0, 25000)}` });
     } else if (mimeType.startsWith('image/')) {
-        // Handle PNG/JPG vision
-        parts.push("Analyze this medical report image for Guru Sankaran. List only out-of-range biomarkers in a Markdown table.");
+        // Fix: Use an object { text: "..." } instead of a raw string
+        parts.push({ text: "Analyze this blood test table for Guru Sankaran. Identify all values that are outside the normal range (highlighted in red or according to the 'NI' reference). List the Parameter, the Value, and the Reference Range in a Markdown table." });
         parts.push({
             inlineData: {
                 data: req.file.buffer.toString("base64"),
@@ -43,18 +44,19 @@ app.post('/analyze', upload.single('report'), async (req, res) => {
             }
         });
     } else {
-        return res.status(400).json({ error: "Unsupported file type. Use PDF or PNG/JPG." });
+        return res.status(400).json({ error: "Please upload a PDF or Image (PNG/JPG)." });
     }
 
+    // Call the model with the correctly formatted parts
     const result = await model.generateContent({ contents: [{ role: "user", parts }] });
     const response = await result.response;
     res.json({ analysis: response.text() });
 
   } catch (error) {
     console.error("ANALYSIS ERROR:", error.message);
-    res.status(500).json({ error: "Processing failed", details: error.message });
+    res.status(500).json({ error: "AI failed to analyze the file.", details: error.message });
   }
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server active on ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server active on port ${PORT}`));
