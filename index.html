@@ -2,49 +2,94 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MedInsight AI Pro</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; background-color: #f4f7f6; text-align: center; }
         .upload-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         #output { margin-top: 20px; padding: 20px; background: white; border-radius: 12px; min-height: 100px; border-left: 5px solid #007bff; white-space: pre-wrap; text-align: left; }
-        button { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        button { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; transition: 0.3s; }
         button:disabled { background: #ccc; cursor: not-allowed; }
+        .status-bar { margin-bottom: 20px; font-size: 14px; font-weight: bold; }
     </style>
 </head>
 <body>
+
     <div class="upload-container">
         <h2>MedInsight Lab Report Analyzer</h2>
+        
+        <div class="status-bar">
+            Server Status: <span id="statusDot" style="color: gray;">● Checking...</span>
+        </div>
+
+        <p>Upload your 19-page report (PDF, Image, or Word)</p>
+        
         <input type="file" id="reportFile" accept=".pdf, .doc, .docx, application/pdf, image/*">
         <br><br>
-        <button onclick="analyzeReport()" id="uploadBtn">Analyze Now</button>
+        
+        <button onclick="analyzeReport()" id="uploadBtn" disabled>Analyze Now</button>
     </div>
+
     <div id="output">Results will appear here...</div>
 
-   <div id="connectionStatus" style="margin-bottom: 15px; font-weight: bold;">
-    Server Status: <span id="statusDot" style="color: gray;">● Checking...</span>
-</div>
+    <script>
+        const API_URL = "https://medinsightai-production.up.railway.app"; 
 
-<script>
-    const API_URL = "https://medinsightai-production.up.railway.app";
-
-    // Function to check if the server is awake
-    async function pingServer() {
-        const dot = document.getElementById('statusDot');
-        try {
-            const res = await fetch(`${API_URL}/test`);
-            if (res.ok) {
-                dot.innerText = "● Online";
-                dot.style.color = "green";
-            } else { throw new Error(); }
-        } catch (e) {
-            dot.innerText = "● Offline (Check Railway Logs)";
-            dot.style.color = "red";
+        // 1. Connection Check: Automatically enables the button if the server is live
+        async function checkConnection() {
+            const dot = document.getElementById('statusDot');
+            const btn = document.getElementById('uploadBtn');
+            try {
+                const res = await fetch(`${API_URL}/test`);
+                if (res.ok) {
+                    dot.innerText = "● Online";
+                    dot.style.color = "green";
+                    btn.disabled = false; // Wake up the button!
+                } else { throw new Error(); }
+            } catch (e) {
+                dot.innerText = "● Offline (Waking up server...)";
+                dot.style.color = "orange";
+                btn.disabled = true;
+            }
         }
-    }
 
-    // Ping every 30 seconds to keep the server from "sleeping"
-    pingServer();
-    setInterval(pingServer, 30000);
-</script>
+        // Run connection check on load and every 30 seconds
+        checkConnection();
+        setInterval(checkConnection, 30000);
+
+        // 2. Analysis Function
+        async function analyzeReport() {
+            const fileInput = document.getElementById('reportFile');
+            const output = document.getElementById('output');
+            const btn = document.getElementById('uploadBtn');
+
+            if (!fileInput.files[0]) return alert("Please select a file first!");
+
+            output.innerHTML = "<i>⏳ Analyzing your report... This can take up to 45 seconds for 19 pages.</i>";
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('report', fileInput.files[0]);
+
+            try {
+                const response = await fetch(`${API_URL}/analyze`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.details || data.error || "Server Error");
+                }
+
+                output.innerText = data.analysis;
+            } catch (err) {
+                output.innerHTML = `<b style="color:red">Error: ${err.message}</b><br><small>If it timed out, try uploading just the summary page.</small>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
 </body>
 </html>
