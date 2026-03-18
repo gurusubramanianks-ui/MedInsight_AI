@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MedInsight AI Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
@@ -10,57 +9,85 @@
             --red: #d9534f; --green: #5cb85c; --blue: #0275d8;
             --orange: #f0ad4e; --cyan: #5bc0de; --purple: #605ca8;
         }
-        body { font-family: 'Inter', 'Segoe UI', sans-serif; max-width: 1100px; margin: 40px auto; padding: 20px; background-color: #f8f9fa; color: #2d3436; }
-        .card { background: white; padding: 35px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #eee; margin-bottom: 25px; }
-        
-        /* Colored Headings Matching Your Instruction */
+        body { font-family: 'Inter', sans-serif; max-width: 1000px; margin: 40px auto; padding: 20px; background: #f8f9fa; color: #333; }
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #eee; }
         .report-content h2:nth-of-type(1) { color: var(--red); }
         .report-content h2:nth-of-type(2) { color: var(--green); }
         .report-content h2:nth-of-type(3) { color: var(--blue); }
         .report-content h2:nth-of-type(4) { color: var(--orange); }
         .report-content h2:nth-of-type(5) { color: var(--cyan); }
         .report-content h2:nth-of-type(6) { color: var(--purple); }
-        
-        .report-content h2 { font-size: 1.35rem; margin-top: 40px; border-bottom: 2px solid #f8f9fa; padding-bottom: 10px; }
-        .report-content li { margin-bottom: 22px; line-height: 1.8; font-size: 1.05rem; }
-        
-        .flex-layout { display: flex; gap: 20px; flex-wrap: wrap; }
-        .column { flex: 1; min-width: 350px; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.03); }
-        
-        .status-bar { margin-bottom: 25px; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; font-weight: 600; }
-        .dot { height: 12px; width: 12px; border-radius: 50%; background: #ccc; transition: 0.3s; }
-        
-        button { background: #007bff; color: white; border: none; padding: 18px; border-radius: 12px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: 0.2s; width: 100%; }
-        button:hover { background: #0056b3; transform: translateY(-1px); }
-        button:disabled { background: #dfe6e9; cursor: not-allowed; }
-
-        .history-badge { background: #e3f2fd; color: #0d47a1; padding: 4px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; margin-left: 10px; vertical-align: middle; }
-        
-        #loadingOverlay { display: none; margin-top: 20px; font-style: italic; color: #666; }
-        @media print { .no-print { display: none !important; } .column { width: 100%; border: none; box-shadow: none; } }
+        .report-content h2 { border-bottom: 2px solid #f8f9fa; padding-bottom: 10px; margin-top: 30px; }
+        .report-content li { margin-bottom: 18px; line-height: 1.7; }
+        button { background: #007bff; color: white; border: none; padding: 15px 25px; border-radius: 10px; cursor: pointer; font-weight: 600; width: 100%; }
+        button:disabled { background: #ccc; }
+        .status { margin-bottom: 15px; font-weight: bold; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
+        .dot { height: 10px; width: 10px; border-radius: 50%; background: #ccc; }
     </style>
 </head>
 <body>
 
-    <div class="card no-print">
-        <h2 style="margin-top: 0; color: #0056b3;">MedInsight Multi-Report Analyzer</h2>
-        <div class="status-bar">
+    <div class="card">
+        <h2 style="margin-top:0">MedInsight Multi-Analyzer</h2>
+        <div class="status">
             <div id="statusDot" class="dot"></div>
             <span id="statusText">System Offline</span>
         </div>
-
-        <p style="font-size: 0.9rem; color: #666;">Upload up to 2 reports. We automatically detect names for History and Comparisons.</p>
-        <input type="file" id="fileInput" multiple accept=".pdf, .png, .jpg, .jpeg" style="margin-bottom: 20px; width: 100%;">
-        
-        <div style="display: flex; gap: 15px;">
-            <button onclick="analyzeReports()" id="mainBtn" disabled style="flex: 2;">Generate Full Insight Report</button>
-            <button id="compareBtn" onclick="alert('Compare Results feature stashed. Activate when ready.')" 
-                    style="background: #6c757d; flex: 1;">Compare Results (Saved)</button>
-        </div>
-        <div id="loadingOverlay">🔍 Scanning pages for abnormal biomarkers... this may take 30-45 seconds for large reports.</div>
+        <input type="file" id="fileInput" multiple style="margin-bottom: 20px; display: block; width: 100%;">
+        <button onclick="analyze()" id="mainBtn" disabled>Generate Insight Report</button>
     </div>
 
-    <div id="displayArea" class="flex-layout"></div>
+    <div id="displayArea"></div>
 
     <script>
-        const API_URL = "
+        const API_URL = "https://medinsightai-production.up.railway.app";
+
+        async function init() {
+            try {
+                const res = await fetch(`${API_URL}/test`);
+                if(res.ok) {
+                    document.getElementById('statusDot').style.background = "#5cb85c";
+                    document.getElementById('statusText').innerText = "System Online";
+                    document.getElementById('mainBtn').disabled = false;
+                }
+            } catch(e) { document.getElementById('statusText').innerText = "Connecting to server..."; }
+        }
+        init();
+
+        async function analyze() {
+            const files = document.getElementById('fileInput').files;
+            if(!files.length) return alert("Select a file.");
+
+            const area = document.getElementById('displayArea');
+            const btn = document.getElementById('mainBtn');
+            
+            btn.disabled = true;
+            area.innerHTML = "<div class='card'><i>Analyzing... this may take a moment.</i></div>";
+
+            const fd = new FormData();
+            for(let f of files) fd.append('reports', f);
+
+            try {
+                const res = await fetch(`${API_URL}/analyze`, { method: 'POST', body: fd });
+                const data = await res.json();
+                
+                if(!res.ok) throw new Error(data.details || data.error || "Server error");
+                if(!data.results) throw new Error("No results returned from server");
+
+                area.innerHTML = "";
+                data.results.forEach(res => {
+                    const col = document.createElement('div');
+                    col.className = "card report-content";
+                    col.innerHTML = `<h1>${res.name}</h1>` + marked.parse(res.content);
+                    area.appendChild(col);
+                });
+
+            } catch(e) {
+                area.innerHTML = `<div class='card' style='color:red'><b>Error:</b> ${e.message}</div>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
