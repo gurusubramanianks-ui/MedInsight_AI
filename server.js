@@ -6,12 +6,10 @@ const pdf = require('pdf-parse');
 const { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } = require("@google/generative-ai");
 
 const app = express();
-
-// Set limits high for the request, but we will handle memory surgically
 app.use(express.json({ limit: '50mb' }));
 app.use(cors());
 
-// Memory-efficient Multer storage
+// Memory-efficient storage
 const upload = multer({ 
     storage: multer.memoryStorage(),
     limits: { fileSize: 50 * 1024 * 1024 } 
@@ -25,68 +23,73 @@ const model = genAI.getGenerativeModel({
     ]
 });
 
-// Health check for Railway to prevent SIGTERM during boot
-app.get('/', (req, res) => res.status(200).send("MedInsight Intelligent Engine is Online"));
+app.get('/', (req, res) => res.status(200).send("MedInsight Online"));
 app.get('/test', (req, res) => res.json({ status: "Ready" }));
 
-// Using .any() to prevent "Unexpected Field" errors entirely
 app.post('/analyze', upload.any(), async (req, res) => {
+  console.log("--- New Request Received ---");
   try {
     if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ error: "No files detected in the request." });
+        console.log("Error: No files in request");
+        return res.status(400).json({ error: "No files detected." });
     }
 
-    const results = await Promise.all(req.files.map(async (file) => {
-      let contentInput = "";
+    console.log(`Processing ${req.files.length} file(s)...`);
 
+    const results = await Promise.all(req.files.map(async (file, index) => {
+      console.log(`File [${index}]: ${file.originalname} (${file.mimetype})`);
+      
+      let contentInput = "";
       if (file.mimetype === 'application/pdf') {
-          // Intelligent Text Extraction
           const data = await pdf(file.buffer);
-          // 45,000 chars is the "Sweet Spot" for 20-page Thyrocare reports to stay under memory limits
-          contentInput = data.text.substring(0, 45000); 
+          contentInput = data.text.substring(0, 45000);
+          console.log(`PDF text extracted: ${contentInput.length} chars`);
       }
 
       const prompt = `
-        You are a MedInsight Clinical Parser. I am providing you with a lab report (PDF text or Image).
+        You are a MedInsight Clinical Parser. Extract patient data.
+        1. SCAN for "Tests outside reference range" or "Abnormal Results".
+        2. IGNORE "Status: Ready" pages.
+        3. EXTRACT Patient Name (use "Unspecified Patient" if missing).
         
-        CRITICAL INSTRUCTIONS:
-        1. SCAN the entire document for the heading "Tests outside reference range" or "Abnormal Results". 
-        2. DO NOT ignore the end of the report; Thyrocare often places summaries on later pages.
-        3. IGNORE pages that only show "Status: Ready" or laboratory branding/disclaimers.
-        4. EXTRACT the Patient Name. If no name is found, use "Unspecified Patient".
-        
-        REPORT FORMAT:
-        Follow the 7-section colored format (Look into, Looking Good, Actions, Diet, Status, Quote, References).
-        Add double line breaks between every list item for UI spacing.
+        FORMAT: 7-section colored format (Look into, Looking Good, Actions, Diet, Status, Quote, References).
+        Use double line breaks between list items.
 
-        RETURN ONLY VALID JSON: {"name": "Name Here", "content": "Markdown String Here"}
+        RETURN ONLY VALID JSON: {"name": "Name", "content": "Markdown Analysis"}
       `;
 
       let parts = [{ text: prompt }];
-      
       if (file.mimetype.startsWith('image/')) {
           parts.push({
               inlineData: { data: file.buffer.toString("base64"), mimeType: file.mimetype }
           });
       } else {
-          parts.push({ text: `DATA SOURCE:\n${contentInput}` });
+          parts.push({ text: `DATA:\n${contentInput}` });
       }
 
+      console.log(`Sending to Gemini [${index}]...`);
       const aiResponse = await model.generateContent({ contents: [{ role: "user", parts }] });
-      const responseText = aiResponse.response.text().replace(/```json|```/g, "").trim();
-      
-      return JSON.parse(responseText);
+      const rawText = aiResponse.response.text();
+      console.log(`Gemini raw output received for [${index}]`);
+
+      // Failsafe JSON Cleaning
+      const cleanedJson = rawText.replace(/```json|```/g, "").trim();
+      try {
+          return JSON.parse(cleanedJson);
+      } catch (e) {
+          console.log("JSON Parse failed, returning raw as content.");
+          return { name: "Analysis Result", content: rawText };
+      }
     }));
 
+    console.log("All files processed successfully.");
     res.json({ results });
 
   } catch (error) {
-    console.error("ENGINE ERROR:", error.message);
-    res.status(500).json({ error: "Processing failed", details: error.message });
+    console.error("CRITICAL SERVER ERROR:", error);
+    res.status(500).json({ error: "Server error", details: error.message });
   }
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 MedInsight Active on Port ${PORT}`);
-});
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server listening on ${PORT}`));
