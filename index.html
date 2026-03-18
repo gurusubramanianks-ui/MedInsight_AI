@@ -20,44 +20,31 @@
     </div>
     <div id="output">Results will appear here...</div>
 
-    <script>
-        // CRITICAL: Ensure this is your EXACT Railway Public URL
-        const API_URL = "https://medinsightai-production.up.railway.app"; 
+   <div id="connectionStatus" style="margin-bottom: 15px; font-weight: bold;">
+    Server Status: <span id="statusDot" style="color: gray;">● Checking...</span>
+</div>
 
-        async function analyzeReport() {
-            const fileInput = document.getElementById('reportFile');
-            const output = document.getElementById('output');
-            const btn = document.getElementById('uploadBtn');
+<script>
+    const API_URL = "https://medinsightai-production.up.railway.app";
 
-            if (!fileInput.files[0]) return alert("Please select a file first!");
-
-            output.innerHTML = "<i>⏳ Connecting to server and analyzing...</i>";
-            btn.disabled = true;
-
-            const formData = new FormData();
-            formData.append('report', fileInput.files[0]);
-
-            try {
-                // We add /analyze to the end of the URL
-                const response = await fetch(`${API_URL}/analyze`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.details || errorData.error || "Server Error");
-                }
-
-                const data = await response.json();
-                output.innerText = data.analysis;
-            } catch (err) {
-                console.error("Fetch Error:", err);
-                output.innerHTML = `<b style="color:red">Error: ${err.message}</b><br><small>If it says 'Failed to fetch', check your Railway URL and ensure the service is 'Active'.</small>`;
-            } finally {
-                btn.disabled = false;
-            }
+    // Function to check if the server is awake
+    async function pingServer() {
+        const dot = document.getElementById('statusDot');
+        try {
+            const res = await fetch(`${API_URL}/test`);
+            if (res.ok) {
+                dot.innerText = "● Online";
+                dot.style.color = "green";
+            } else { throw new Error(); }
+        } catch (e) {
+            dot.innerText = "● Offline (Check Railway Logs)";
+            dot.style.color = "red";
         }
-    </script>
+    }
+
+    // Ping every 30 seconds to keep the server from "sleeping"
+    pingServer();
+    setInterval(pingServer, 30000);
+</script>
 </body>
 </html>
