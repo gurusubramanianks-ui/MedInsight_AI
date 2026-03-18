@@ -13,7 +13,7 @@
         body { font-family: 'Inter', 'Segoe UI', sans-serif; max-width: 1100px; margin: 40px auto; padding: 20px; background-color: #f8f9fa; color: #2d3436; }
         .card { background: white; padding: 35px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); border: 1px solid #eee; margin-bottom: 25px; }
         
-        /* Colored Headings */
+        /* Colored Headings Matching Your Instruction */
         .report-content h2:nth-of-type(1) { color: var(--red); }
         .report-content h2:nth-of-type(2) { color: var(--green); }
         .report-content h2:nth-of-type(3) { color: var(--blue); }
@@ -21,24 +21,23 @@
         .report-content h2:nth-of-type(5) { color: var(--cyan); }
         .report-content h2:nth-of-type(6) { color: var(--purple); }
         
-        .report-content h2 { font-size: 1.3rem; margin-top: 35px; border-bottom: 2px solid #f8f9fa; padding-bottom: 8px; }
-        .report-content li { margin-bottom: 20px; line-height: 1.8; }
+        .report-content h2 { font-size: 1.35rem; margin-top: 40px; border-bottom: 2px solid #f8f9fa; padding-bottom: 10px; }
+        .report-content li { margin-bottom: 22px; line-height: 1.8; font-size: 1.05rem; }
         
         .flex-layout { display: flex; gap: 20px; flex-wrap: wrap; }
-        .column { flex: 1; min-width: 300px; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.03); }
+        .column { flex: 1; min-width: 350px; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.03); }
         
-        .history-badge { background: #e3f2fd; color: #0d47a1; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-left: 10px; }
+        .status-bar { margin-bottom: 25px; font-size: 0.9rem; display: flex; align-items: center; gap: 10px; font-weight: 600; }
+        .dot { height: 12px; width: 12px; border-radius: 50%; background: #ccc; transition: 0.3s; }
         
-        .status-bar { margin-bottom: 20px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; font-weight: 600; }
-        .dot { height: 10px; width: 10px; border-radius: 50%; background: #ccc; }
-        
-        button { background: #007bff; color: white; border: none; padding: 15px; border-radius: 12px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: 0.2s; }
-        button:hover { background: #0056b3; }
+        button { background: #007bff; color: white; border: none; padding: 18px; border-radius: 12px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: 0.2s; width: 100%; }
+        button:hover { background: #0056b3; transform: translateY(-1px); }
         button:disabled { background: #dfe6e9; cursor: not-allowed; }
 
-        #alertBanner { background: #fff5f5; border: 2px solid var(--red); color: var(--red); padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none; }
+        .history-badge { background: #e3f2fd; color: #0d47a1; padding: 4px 12px; border-radius: 15px; font-size: 0.8rem; font-weight: bold; margin-left: 10px; vertical-align: middle; }
         
-        @media print { .no-print { display: none !important; } .column { width: 100%; border: none; } }
+        #loadingOverlay { display: none; margin-top: 20px; font-style: italic; color: #666; }
+        @media print { .no-print { display: none !important; } .column { width: 100%; border: none; box-shadow: none; } }
     </style>
 </head>
 <body>
@@ -50,92 +49,18 @@
             <span id="statusText">System Offline</span>
         </div>
 
+        <p style="font-size: 0.9rem; color: #666;">Upload up to 2 reports. We automatically detect names for History and Comparisons.</p>
         <input type="file" id="fileInput" multiple accept=".pdf, .png, .jpg, .jpeg" style="margin-bottom: 20px; width: 100%;">
         
-        <div style="display: flex; gap: 10px;">
-            <button onclick="analyzeReports()" id="mainBtn" disabled style="flex: 2;">Analyze Reports</button>
-            <button id="compareBtn" onclick="alert('Compare Results feature is stashed and ready for your next instruction.')" 
-                    style="background: #6c757d; flex: 1;">Compare Results</button>
+        <div style="display: flex; gap: 15px;">
+            <button onclick="analyzeReports()" id="mainBtn" disabled style="flex: 2;">Generate Full Insight Report</button>
+            <button id="compareBtn" onclick="alert('Compare Results feature stashed. Activate when ready.')" 
+                    style="background: #6c757d; flex: 1;">Compare Results (Saved)</button>
         </div>
-    </div>
-
-    <div id="alertBanner">
-        <strong>⚠️ CRITICAL BIOMARKERS DETECTED:</strong> Please review the abnormal values section immediately.
+        <div id="loadingOverlay">🔍 Scanning pages for abnormal biomarkers... this may take 30-45 seconds for large reports.</div>
     </div>
 
     <div id="displayArea" class="flex-layout"></div>
 
     <script>
-        const API_URL = "https://medinsightai-production.up.railway.app";
-
-        async function ping() {
-            try {
-                const res = await fetch(`${API_URL}/test`);
-                if(res.ok) {
-                    document.getElementById('statusDot').style.background = "#5cb85c";
-                    document.getElementById('statusText').innerText = "System Online";
-                    document.getElementById('mainBtn').disabled = false;
-                }
-            } catch(e) {}
-        }
-        ping();
-
-        async function analyzeReports() {
-            const files = document.getElementById('fileInput').files;
-            if(files.length === 0) return alert("Select at least one file.");
-
-            const btn = document.getElementById('mainBtn');
-            const area = document.getElementById('displayArea');
-            const banner = document.getElementById('alertBanner');
-
-            btn.disabled = true;
-            banner.style.display = "none";
-            area.innerHTML = "<div class='card'><i>🔍 Scanning for headings and abnormal values across all pages...</i></div>";
-
-            const fd = new FormData();
-            for(let f of files) fd.append('reports', f);
-
-            try {
-                const res = await fetch(`${API_URL}/analyze`, { method: 'POST', body: fd });
-                const data = await res.json();
-                if(!res.ok) throw new Error(data.details || "Analysis failed");
-
-                renderResults(data.results);
-            } catch(e) {
-                area.innerHTML = `<div class='card' style='color:red'><b>Error:</b> ${e.message}</div>`;
-            } finally {
-                btn.disabled = false;
-            }
-        }
-
-        function renderResults(results) {
-            const area = document.getElementById('displayArea');
-            const banner = document.getElementById('alertBanner');
-            area.innerHTML = "";
-
-            results.forEach((r, idx) => {
-                const isHistory = (results.length > 1 && results[0].name === results[1].name && idx > 0) || localStorage.getItem(`seen_${r.name}`);
-                
-                // Show critical banner if certain keywords appear in abnormal section
-                if (r.content.toLowerCase().includes("high") || r.content.toLowerCase().includes("low")) {
-                    banner.style.display = "block";
-                }
-
-                const col = document.createElement('div');
-                col.className = "column card report-content";
-                
-                const badge = isHistory ? `<span class="history-badge">History Log</span>` : "";
-                
-                col.innerHTML = `
-                    <h1 style="margin-top:0; font-size:1.5rem;">${r.name} ${badge}</h1>
-                    ${marked.parse(r.content)}
-                    <button class="no-print" onclick="window.print()" style="margin-top:20px; background:#2d3436; font-size:0.8rem;">Save as PDF</button>
-                `;
-                
-                area.appendChild(col);
-                localStorage.setItem(`seen_${r.name}`, "true");
-            });
-        }
-    </script>
-</body>
-</html>
+        const API_URL = "
