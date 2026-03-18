@@ -29,36 +29,43 @@ app.post('/analyze', upload.single('report'), async (req, res) => {
     let parts = [];
 
     // Prompt logic for MedInsight 2026 Format
-    const insightPrompt = `
-      You are a clinical analyst for MedInsight. Analyze this report for Guru Sankaran.
-      Follow this EXACT structure:
+   // ... (keep existing imports and setup)
 
-      ## 📊 1. What you need to look into
-      - List ONLY biomarkers that are HIGH, LOW, or ABNORMAL. 
-      - Include the value and a simple, 1-sentence explanation of what it means for the body.
+const insightPrompt = `
+  You are a clinical analyst for MedInsight. 
+  1. Identify the patient's name from the report. If no name is found, refer to them as "the Patient".
+  2. Analyze the biomarkers provided.
+  
+  Follow this EXACT structure with double line breaks between points for spacing:
 
-      ## ✅ 2. Whats looking Good
-      - Group the biomarkers that are within the normal reference range.
+  # 📊 1. What you need to look into
+  - List ONLY biomarkers that are HIGH, LOW, or ABNORMAL. 
+  - [Biomarker Name] ([Value]): [1-sentence explanation].
 
-      ## 📋 3. Action Items
-      - List 3-5 clear, actionable steps the patient should discuss with their doctor.
+  # ✅ 2. Whats looking Good
+  - Group biomarkers within the normal range.
 
-      ## 🥗 4. Diet Summary
-      - **Foods to take:** List specific foods that help stabilize the abnormal biomarkers found.
-      - **Foods to avoid:** List foods that could worsen the specific conditions identified (e.g., high glucose or triglycerides). Cross-check these for multiple conditions.
+  # 📋 3. Action Items
+  - Action 1...
+  - Action 2...
 
-      ## 📈 5. How you're doing
-      - Provide a brief summary of current health status compared to typical standards.
+  # 🥗 4. Diet Summary
+  - **Foods to take:** ...
+  - **Foods to avoid:** ...
 
-      ## 💡 6. Motivational Quote
-      - Provide a personalized statistical and motivational quote related to health progress.
+  # 📈 5. How you're doing
+  - Overall status summary.
 
-      ## 🔗 7. References
-      - Cite references from approved organizations like ICMR, WHO, or CDC for the abnormal biomarkers found.
+  # 💡 6. Motivational Quote
+  - One sentence.
 
-      IMPORTANT: Use Markdown formatting. Include a standard medical disclaimer at the very end.
-    `;
+  # 🔗 7. References
+  - List 3 approved organizations.
 
+  STRICT RULE: Do not invent data. If no name is present, do not use 'Guru Sankaran'.
+`;
+
+// ... (keep the rest of the file logic same as previous multimodal version)
     if (mimeType === 'application/pdf') {
         const data = await pdf(req.file.buffer);
         parts.push({ text: `${insightPrompt}\n\nREPORT TEXT:\n${data.text.substring(0, 25000)}` });
