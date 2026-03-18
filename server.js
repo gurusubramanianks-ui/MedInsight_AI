@@ -9,41 +9,51 @@ const app = express();
 app.use(express.json({ limit: '50mb' })); 
 app.use(cors());
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 25 * 1024 * 1024 } // 25MB safety limit
+});
 
-// --- STARTUP CHECK ---
-const API_KEY = process.env.GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(API_KEY || "");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-// The fix: Explicitly using the standard model name
+// The Fix: Use 'gemini-1.5-flash' without the v1beta prefix in the string
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-app.get('/', (req, res) => res.send("MedInsight Active"));
+// Health Check for Railway (Prevents SIGTERM) 
+app.get('/', (req, res) => res.status(200).send("MedInsight Active"));
 app.get('/test', (req, res) => res.json({ status: "Ready" }));
 
 app.post('/analyze', upload.single('report'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file" });
 
-    // Step 1: Extract text to save memory for 19-page files [cite: 15, 17]
+    // Step 1: Extract text (Saves memory over sending full PDF to AI) [cite: 17, 26]
     const data = await pdf(req.file.buffer);
-    const text = data.text.substring(0, 25000); // Surgical limit [cite: 15, 17]
+    
+    // Step 2: Chunk the text to stay within memory limits 
+    const textSnippet = data.text.substring(0, 25000); 
 
-    // Step 2: Optimized Prompt for Guru Sankaran's results [cite: 13, 15]
-    const prompt = `Identify ONLY abnormal biomarkers in this medical text. Table format. \n\n ${text}`;
+    // Step 3: Surgical Prompt for Guru Sankaran's report [cite: 13, 26]
+    const prompt = `Identify ONLY abnormal biomarkers (High/Low) in this medical text. 
+    Return as a Markdown table.
+    TEXT: ${textSnippet}`;
 
-    // Step 3: Fast Generation Config [cite: 15, 18]
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 500, temperature: 0.1 }
+      generationConfig: { maxOutputTokens: 600, temperature: 0.1 }
     });
 
-    res.json({ analysis: (await result.response).text() });
+    const response = await result.response;
+    res.json({ analysis: response.text() });
+
   } catch (error) {
     console.error("AI ERROR:", error.message);
-    res.status(500).json({ error: "AI Call Failed", details: error.message });
+    res.status(500).json({ error: "Analysis failed", details: error.message });
   }
 });
 
-const PORT = process.env.PORT || 8080; // Bound to Railway's port [cite: 1, 23]
-app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server on ${PORT}`));
+// Bind to 0.0.0.0 and dynamic port [cite: 1, 23, 26]
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
