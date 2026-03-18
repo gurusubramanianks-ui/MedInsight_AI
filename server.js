@@ -9,7 +9,10 @@ const app = express();
 app.use(express.json({ limit: '50mb' })); 
 app.use(cors());
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB for high-res lab PDFs
+});
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const model = genAI.getGenerativeModel({ 
@@ -19,64 +22,65 @@ const model = genAI.getGenerativeModel({
     ]
 });
 
+// STASHED FEATURE: Compare Results (For future implementation)
+const compareResultsModule = (results) => {
+    // Logic to be implemented later for side-by-side mapping
+    return null;
+};
+
 app.get('/test', (req, res) => res.json({ status: "Ready" }));
 
-app.post('/analyze', upload.single('report'), async (req, res) => {
+app.post('/analyze', upload.array('reports', 2), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    if (!req.files || req.files.length === 0) return res.status(400).json({ error: "No files uploaded" });
 
-    const mimeType = req.file.mimetype;
-    let parts = [];
+    const results = await Promise.all(req.files.map(async (file) => {
+      let contentInput = "";
 
-    // Prompt logic for MedInsight 2026 Format
-   // ... (keep existing imports and setup)
+      if (file.mimetype === 'application/pdf') {
+          // Extract full text to allow the AI to find headings on any page
+          const data = await pdf(file.buffer);
+          contentInput = data.text.substring(0, 50000); // 50k chars covers ~25 pages of text
+      }
 
-const insightPrompt = `
-  You are a clinical analyst for MedInsight. 
-  1. Identify the patient's name from the report. If no name is found, refer to them as "the Patient".
-  2. Analyze the biomarkers provided.
-  
-  Follow this EXACT structure with double line breaks between points for spacing:
+      const prompt = `
+        You are a MedInsight Clinical Parser. I am providing you with a lab report (PDF text or Image).
+        
+        INSTRUCTIONS:
+        1. SCAN for headings like "Tests outside reference range", "Abnormal Results", or "Flagged Values".
+        2. IGNORE pages that only show "Status: Ready", Terms & Conditions, or generic lab marketing.
+        3. EXTRACT the Patient Name. If no name is found, use "Unspecified Patient".
+        4. ANALYZE the data and provide the report in the following 7-section Markdown format.
+        
+        FORMAT REQUIREMENTS:
+        - Use ## for headers.
+        - Add TWO line breaks between every bullet point for readability.
+        - Section 1: 📊 1. What you need to look into (Abnormal values + 1-sentence meaning)
+        - Section 2: ✅ 2. Whats looking Good (Normal values)
+        - Section 3: 📋 3. Action Items (Actionable steps)
+        - Section 4: 🥗 4. Diet Summary (Foods to take/avoid cross-checked for conditions)
+        - Section 5: 📈 5. How you're doing (Overall summary)
+        - Section 6: 💡 6. Motivational Quote
+        - Section 7: 🔗 7. References (ICMR, WHO, or CDC)
 
-  # 📊 1. What you need to look into
-  - List ONLY biomarkers that are HIGH, LOW, or ABNORMAL. 
-  - [Biomarker Name] ([Value]): [1-sentence explanation].
+        OUTPUT: Return ONLY a valid JSON object: {"name": "Patient Name", "content": "Markdown string"}
+      `;
 
-  # ✅ 2. Whats looking Good
-  - Group biomarkers within the normal range.
+      let parts = [{ text: prompt }];
+      if (file.mimetype.startsWith('image/')) {
+          parts.push({
+              inlineData: { data: file.buffer.toString("base64"), mimeType: file.mimetype }
+          });
+      } else {
+          parts.push({ text: `REPORT DATA:\n${contentInput}` });
+      }
 
-  # 📋 3. Action Items
-  - Action 1...
-  - Action 2...
+      const aiResponse = await model.generateContent({ contents: [{ role: "user", parts }] });
+      const rawText = aiResponse.response.text().replace(/```json|```/g, "").trim();
+      return JSON.parse(rawText);
+    }));
 
-  # 🥗 4. Diet Summary
-  - **Foods to take:** ...
-  - **Foods to avoid:** ...
-
-  # 📈 5. How you're doing
-  - Overall status summary.
-
-  # 💡 6. Motivational Quote
-  - One sentence.
-
-  # 🔗 7. References
-  - List 3 approved organizations.
-
-  STRICT RULE: Do not invent data. If no name is present, do not use 'Guru Sankaran'.
-`;
-
-// ... (keep the rest of the file logic same as previous multimodal version)
-    if (mimeType === 'application/pdf') {
-        const data = await pdf(req.file.buffer);
-        parts.push({ text: `${insightPrompt}\n\nREPORT TEXT:\n${data.text.substring(0, 25000)}` });
-    } else if (mimeType.startsWith('image/')) {
-        parts.push({ text: insightPrompt });
-        parts.push({ inlineData: { data: req.file.buffer.toString("base64"), mimeType } });
-    }
-
-    const result = await model.generateContent({ contents: [{ role: "user", parts }] });
-    const response = await result.response;
-    res.json({ analysis: response.text() });
+    res.json({ results });
 
   } catch (error) {
     console.error("ANALYSIS ERROR:", error.message);
@@ -85,4 +89,4 @@ const insightPrompt = `
 });
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, '0.0.0.0', () => console.log(`🚀 MedInsight Server Active on ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`🚀 MedInsight Intelligent Engine Active on ${PORT}`));
